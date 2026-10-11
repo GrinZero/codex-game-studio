@@ -1,0 +1,11 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "game-studio": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["./node_modules/tsx/dist/cli.mjs", "./src/server/mcp.ts"],
+      "cwd": "./"
+    }
+  }
+}

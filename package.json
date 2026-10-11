@@ -1,0 +1,53 @@
+{
+  "name": "codex-game-studio",
+  "version": "0.1.7",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "tsx src/server/http.ts",
+    "build": "node scripts/write-build-version.mjs && tsc --noEmit && vite build && node scripts/build-mcp-ui.mjs && node scripts/check-distribution.mjs",
+    "check:distribution": "node scripts/check-distribution.mjs",
+    "start": "tsx src/server/http.ts --production",
+    "mcp": "tsx src/server/mcp.ts",
+    "install:local": "node scripts/install-local.mjs",
+    "test": "tsx --test tests/*.test.ts",
+    "pretest": "node scripts/build-mcp-ui.mjs",
+    "check": "tsc --noEmit",
+    "demo": "tsx scripts/demo.ts",
+    "test:ui": "node scripts/browser-smoke.mjs",
+    "test:mcp-ui": "node scripts/build-mcp-ui.mjs && node scripts/mcp-ui-smoke.mjs",
+    "format": "prettier --write src tests scripts docs *.json *.ts"
+  },
+  "dependencies": {
+    "@google/model-viewer": "4.3.1",
+    "@modelcontextprotocol/ext-apps": "1.7.5",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "@openai/mcp-extensions": "0.1.0",
+    "@xyflow/react": "12.12.0",
+    "express": "5.1.0",
+    "lucide-react": "0.468.0",
+    "multer": "2.4.0",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.58.0",
+    "@types/express": "5.0.3",
+    "@types/multer": "2.0.0",
+    "@types/node": "24.3.0",
+    "@types/react": "19.1.12",
+    "@types/react-dom": "19.1.9",
+    "@vitejs/plugin-react": "5.0.3",
+    "esbuild": "0.25.12",
+    "prettier": "3.6.2",
+    "tsx": "4.20.5",
+    "typescript": "5.9.2",
+    "vite": "7.1.3"
+  }
+}

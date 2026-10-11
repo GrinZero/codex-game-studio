@@ -1,0 +1,32 @@
+# Dependencies and generated build output
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.cache/
+
+# Local projects, registry databases, and runtime state
+var/
+.game-studio/
+runtime-update.json
+
+# Credentials and local environment configuration
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Logs and test artifacts
+*.log
+playwright-report/
+test-results/
+
+# Operating system and editor files
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+.idea/
+*.swp
+*.swo
+*~
