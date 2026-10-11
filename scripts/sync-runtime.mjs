@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   writeFileSync,
 } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -33,8 +34,10 @@ for (const entry of [
   "dist",
   "package.json",
   "package-lock.json",
-  "README.md",
+  ...readdirSync(repo).filter((file) => /^README(?:\.[\w-]+)?\.md$/.test(file)),
+  "CONTRIBUTING.md",
   "docs",
+  "licenses",
   "scripts",
   "AGENTS.md",
 ]) {

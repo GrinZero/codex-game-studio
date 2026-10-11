@@ -4,6 +4,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   renameSync,
   rmSync,
   writeFileSync,
@@ -60,10 +61,13 @@ for (const entry of [
   "dist",
   "node_modules",
   "package.json",
-  "README.md",
+  ...readdirSync(repo).filter((file) => /^README(?:\.[\w-]+)?\.md$/.test(file)),
+  "CONTRIBUTING.md",
   "docs",
+  "licenses",
+  "AGENTS.md",
   "samples",
-  "scripts/demo.ts",
+  "scripts",
 ]) {
   const destination = path.join(stagedRuntime, entry);
   mkdirSync(path.dirname(destination), { recursive: true });

@@ -1,10 +1,25 @@
 # 初始操作契约
 
-HTTP 为 `POST /api/tools/<tool>`，JSON 参数。stdio MCP 注册相同 18 个工具，输入 schema 由 `src/server/operations.ts` 提供。所有项目内变更显式携带 projectId；浏览器上传是 `/api/projects/<projectId>/import` multipart。
+HTTP 为 `POST /api/tools/<tool>`，JSON 参数。stdio MCP 注册相同 26 个领域工具，另有 1 个 app 专用桥接工具，输入 schema 由 `src/server/operations.ts` 提供。所有项目内变更显式携带 projectId；浏览器上传是 `/api/projects/<projectId>/import` multipart。
 
 项目表单通过 `POST /api/directories/pick` 请求本机文件夹选择，参数 `{ "mode": "create" | "link", "initialPath"?: "/absolute/path" }`。返回 `{ "path": "/selected/directory" }`，取消返回 `{ "path": null }`；只选择位置，不登记或创建项目。新建时 UI 默认直接使用所选目录；只有勾选「按项目名称创建子文件夹」时才追加项目文件夹名。表单显示最终路径，并将其作为 `root` 调用 `project_manage`。`create` 支持已有文件夹，保留已有文件；尚未存在的目录会创建。已经登记的目录返回原项目，不重置画布或项目名称。此接口同样由 app 专用 `studio_ui_request` 桥接，不增加模型可调用的领域工具。
 
 项目封面使用 `project_manage` 更新：`{ "action": "update", "projectId": "p_...", "cover": { "revisionId": "rev_...", "fileIndex": 0 } }`。`fileIndex` 是该版本文件集中的零起始索引；必须引用本项目内的图片文件，保存时校验文件存在与 SHA256。传 `"cover": null` 移除封面，不传则保留当前封面。封面固定到所选版本，不随资源最新版本更新。上传新封面复用资源导入，再设置返回的图片版本；内嵌 UI 复用同一 MCP 桥接与 blob 图片预览。
+
+## 完整工具索引
+
+参数 schema 的事实源为 `src/server/operations.ts`；界面桥接为 `src/server/ui.ts`。
+
+| 类别 | 工具 |
+| --- | --- |
+| 工作台与项目 | `studio_open`, `project_manage`, `project_open` |
+| 资源 | `asset_search`, `asset_import`, `asset_manage`, `asset_inspect` |
+| 文档 | `document_save` |
+| 资源制作 | `generation_capabilities`, `generation_create`, `generation_get`, `generation_start`, `generation_control`, `generation_adopt`, `generation_complete` |
+| 画布与上下文 | `canvas_open`, `canvas_manage`, `canvas_patch`, `selection_context` |
+| 角色流程 | `workflow_prepare`, `workflow_start`, `workflow_get`, `workflow_decide`, `workflow_submit_artifact`, `job_control` |
+| 导出 | `export_bundle` |
+| 界面专用 | `studio_ui_request` |
 
 ## 画布
 
@@ -80,7 +95,7 @@ export_bundle 通过固定 revisionIds 和幂等键生成独立目录。带 runI
 
 studio_open 可以传 `{}`，返回项目、URL 和真实能力状态。project_open 获取快照。asset_search 支持 query / kind / cursor / limit；asset_inspect 返回所有版本及跨画布使用位置。selection_context 返回固定选择、上游 inputSnapshot 与带 fileRef 的版本文件，不向宿主自动发送消息。
 
-当前仅提供 stdio MCP tools 与外部浏览器 UI，未绑定 ui:// MCP App 资源。完整宿主入口将在 M0 实测后添加，不能从 manifest 存在推断当前宿主支持。
+`studio_open` 已绑定 `ui://game-studio/workbench` MCP App 资源及 global/thread 入口。`studio_ui_request` 仅供界面调用，负责项目数据、导入与媒体桥接。原生宿主是否显示入口仍取决于宿主支持，不能从 manifest 存在推断当前宿主表现。
 
 ## 连线输入与冻结（2026-10-10）
 

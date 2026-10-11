@@ -19,7 +19,8 @@
     "demo": "tsx scripts/demo.ts",
     "test:ui": "node scripts/browser-smoke.mjs",
     "test:mcp-ui": "node scripts/build-mcp-ui.mjs && node scripts/mcp-ui-smoke.mjs",
-    "format": "prettier --write src tests scripts docs *.json *.ts"
+    "format": "prettier --write src tests scripts docs *.json *.ts",
+    "check:docs": "node scripts/check-docs.mjs"
   },
   "dependencies": {
     "@google/model-viewer": "4.3.1",
