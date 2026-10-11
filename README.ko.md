@@ -11,11 +11,7 @@
 <p align="center"><strong>Codex 안에서 사용하는 로컬 게임 제작 워크벤치.</strong></p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-Alpha-91b8e6?style=flat-square" alt="Alpha" />
-  <img src="https://img.shields.io/badge/Node.js-24%2B-86d7bd?style=flat-square" alt="Node.js 24+" />
-  <img src="https://img.shields.io/badge/built_for-Codex_MCP_Apps-a2c4f2?style=flat-square" alt="Codex MCP Apps" />
-  <img src="https://img.shields.io/badge/storage-local_SQLite-c6c5ee?style=flat-square" alt="Local SQLite" />
-  <img src="https://img.shields.io/badge/license-not_specified-d8b77b?style=flat-square" alt="License not specified" />
+  <img src="docs/images/badges.svg" alt="Alpha · Node.js 24+ · Codex MCP Apps · Local SQLite · License not specified" width="100%" />
 </p>
 
 참고 이미지, 문서, 미디어와 3D 에셋을 하나의 캔버스에 모으세요. 버전, 제작 결정과 내보내기 기록을 내 컴퓨터의 프로젝트 파일과 연결해 관리할 수 있습니다.

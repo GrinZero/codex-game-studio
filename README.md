@@ -11,11 +11,7 @@
 <p align="center"><strong>Your local game production workbench for Codex.</strong></p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-Alpha-91b8e6?style=flat-square" alt="Alpha" />
-  <img src="https://img.shields.io/badge/Node.js-24%2B-86d7bd?style=flat-square" alt="Node.js 24+" />
-  <img src="https://img.shields.io/badge/built_for-Codex_MCP_Apps-a2c4f2?style=flat-square" alt="Codex MCP Apps" />
-  <img src="https://img.shields.io/badge/storage-local_SQLite-c6c5ee?style=flat-square" alt="Local SQLite" />
-  <img src="https://img.shields.io/badge/license-not_specified-d8b77b?style=flat-square" alt="License not specified" />
+  <img src="docs/images/badges.svg" alt="Alpha · Node.js 24+ · Codex MCP Apps · Local SQLite · License not specified" width="100%" />
 </p>
 
 Bring references, documents, media and 3D assets onto one visual canvas. Keep their versions, production decisions and exports connected to the project files on your machine.
