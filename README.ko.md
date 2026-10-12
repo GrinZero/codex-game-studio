@@ -11,12 +11,12 @@
 <p align="center"><strong>Codex 안에서 사용하는 로컬 게임 제작 워크벤치.</strong></p>
 
 <p align="center">
-  <img src="docs/images/badges.svg" alt="Alpha · Node.js 24+ · Codex MCP Apps · Local SQLite · License not specified" width="100%" />
+  <img src="docs/images/badges.svg" alt="Alpha · Node.js 24+ · Codex MCP Apps · Local SQLite · MIT License" width="100%" />
 </p>
 
 참고 이미지, 문서, 미디어와 3D 에셋을 하나의 캔버스에 모으세요. 버전, 제작 결정과 내보내기 기록을 내 컴퓨터의 프로젝트 파일과 연결해 관리할 수 있습니다.
 
-> **Alpha · macOS 설치 프로그램 · 프로젝트 라이선스 미지정.** 로컬 정리는 독립적으로 사용할 수 있습니다. AI 제작에는 직접 설정한 도구와 계정이 필요합니다. README는 다국어로 제공되지만 워크벤치 UI는 현재 중국어입니다.
+> **Alpha · macOS 설치 프로그램 · MIT 라이선스.** 로컬 정리는 독립적으로 사용할 수 있습니다. AI 제작에는 직접 설정한 도구와 계정이 필요합니다. README는 다국어로 제공되지만 워크벤치 UI는 현재 중국어입니다.
 
 [시작](#try-it) · [설치](#install) · [기능](#features) · [화면](#gallery) · [문서](#documentation) · [제한](#limits)
 
@@ -133,6 +133,6 @@ npm run install:local
 
 ## 라이선스와 출처
 
-프로젝트 전체의 오픈 소스 라이선스는 **아직 정해지지 않았습니다**. 공개 저장소라는 사실이 코드 재사용 권한을 부여하지는 않습니다. 의존성 라이선스와 오리지널 예제 출처는 [서드파티 고지](licenses/THIRD_PARTY.md)에 기록되어 있습니다.
+이 프로젝트는 [MIT 라이선스](LICENSE)를 따릅니다. 의존성 라이선스와 오리지널 예제 출처는 [서드파티 고지](licenses/THIRD_PARTY.md)에 기록되어 있습니다.
 
 README 구성은 [Tripo Studio for Codex](https://github.com/GrinZero/tripo-studio-plugin)를 참고했습니다. 이곳의 배너와 예제 화면은 본 프로젝트의 자료입니다.

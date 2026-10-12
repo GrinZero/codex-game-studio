@@ -1,6 +1,7 @@
 {
   "name": "codex-game-studio",
   "version": "0.1.7",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "engines": {

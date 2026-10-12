@@ -11,12 +11,12 @@
 <p align="center"><strong>在 Codex 里，把游戏创作整理成一个本地工作台。</strong></p>
 
 <p align="center">
-  <img src="docs/images/badges.svg" alt="Alpha · Node.js 24+ · Codex MCP Apps · Local SQLite · License not specified" width="100%" />
+  <img src="docs/images/badges.svg" alt="Alpha · Node.js 24+ · Codex MCP Apps · Local SQLite · MIT License" width="100%" />
 </p>
 
 参考图、文档、媒体和 3D 资源放到同一张画布上，版本、制作决策与导出记录都能追溯到本机项目文件。
 
-> **Alpha · macOS 安装器 · 尚未指定项目许可证。** 本地整理可独立使用；AI 制作需要自行配置工具与账号。README 提供多语言版本，工作台界面目前仍使用中文。
+> **Alpha · macOS 安装器 · MIT 许可证。** 本地整理可独立使用；AI 制作需要自行配置工具与账号。README 提供多语言版本，工作台界面目前仍使用中文。
 
 [试用](#try-it) · [安装](#install) · [功能](#features) · [预览](#gallery) · [文档](#documentation) · [边界](#limits)
 
@@ -133,6 +133,6 @@ npm run install:local
 
 ## 许可与来源
 
-尚未选择项目级开源许可证。仓库公开不代表授予代码复用许可。依赖许可与原创示例来源见 [第三方声明](licenses/THIRD_PARTY.md)。
+本项目采用 [MIT 许可证](LICENSE)。依赖许可与原创示例来源见 [第三方声明](licenses/THIRD_PARTY.md)。
 
 README 展示方式参考 [Tripo Studio for Codex](https://github.com/GrinZero/tripo-studio-plugin)；这里的横幅与示例截图来自本项目。

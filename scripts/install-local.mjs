@@ -63,6 +63,7 @@ for (const entry of [
   "package.json",
   ...readdirSync(repo).filter((file) => /^README(?:\.[\w-]+)?\.md$/.test(file)),
   "CONTRIBUTING.md",
+  "LICENSE",
   "docs",
   "licenses",
   "AGENTS.md",

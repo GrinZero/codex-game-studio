@@ -11,12 +11,12 @@
 <p align="center"><strong>在 Codex 裡，把遊戲創作整理成一個本機工作台。</strong></p>
 
 <p align="center">
-  <img src="docs/images/badges.svg" alt="Alpha · Node.js 24+ · Codex MCP Apps · Local SQLite · License not specified" width="100%" />
+  <img src="docs/images/badges.svg" alt="Alpha · Node.js 24+ · Codex MCP Apps · Local SQLite · MIT License" width="100%" />
 </p>
 
 將參考圖、文件、媒體與 3D 資產放在同一張畫布上，讓版本、製作決策與匯出紀錄都能追溯到本機專案檔案。
 
-> **Alpha · macOS 安裝程式 · 尚未指定專案授權條款。** 本機整理可獨立使用；AI 製作需要自行設定工具與帳號。README 提供多語言版本，工作台介面目前仍使用簡體中文。
+> **Alpha · macOS 安裝程式 · MIT 授權條款。** 本機整理可獨立使用；AI 製作需要自行設定工具與帳號。README 提供多語言版本，工作台介面目前仍使用簡體中文。
 
 [試用](#try-it) · [安裝](#install) · [功能](#features) · [預覽](#gallery) · [文件](#documentation) · [限制](#limits)
 
@@ -133,6 +133,6 @@ npm run install:local
 
 ## 授權與來源
 
-尚未選定專案級開源授權條款。儲存庫公開不代表授予程式碼重用權利。相依套件授權與原創範例來源見 [第三方聲明](licenses/THIRD_PARTY.md)。
+本專案採用 [MIT 授權條款](LICENSE)。相依套件授權與原創範例來源見 [第三方聲明](licenses/THIRD_PARTY.md)。
 
 README 展示方式參考 [Tripo Studio for Codex](https://github.com/GrinZero/tripo-studio-plugin)；此處的橫幅與範例截圖來自本專案。

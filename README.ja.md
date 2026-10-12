@@ -11,12 +11,12 @@
 <p align="center"><strong>Codex で使う、ローカルのゲーム制作ワークベンチ。</strong></p>
 
 <p align="center">
-  <img src="docs/images/badges.svg" alt="Alpha · Node.js 24+ · Codex MCP Apps · Local SQLite · License not specified" width="100%" />
+  <img src="docs/images/badges.svg" alt="Alpha · Node.js 24+ · Codex MCP Apps · Local SQLite · MIT License" width="100%" />
 </p>
 
 参考画像、ドキュメント、メディア、3D アセットをひとつのキャンバスに。バージョン、制作上の判断、書き出し履歴を、手元のプロジェクトファイルと結び付けて管理できます。
 
-> **Alpha · macOS 用インストーラー · プロジェクトのライセンスは未指定。** ローカルでの整理は単独で利用できます。AI 制作には自分で設定したツールとアカウントが必要です。README は多言語ですが、ワークベンチの UI は現在中国語です。
+> **Alpha · macOS 用インストーラー · MIT ライセンス。** ローカルでの整理は単独で利用できます。AI 制作には自分で設定したツールとアカウントが必要です。README は多言語ですが、ワークベンチの UI は現在中国語です。
 
 [試す](#try-it) · [インストール](#install) · [機能](#features) · [画面](#gallery) · [ドキュメント](#documentation) · [制限](#limits)
 
@@ -133,6 +133,6 @@ npm run install:local
 
 ## ライセンスと出典
 
-プロジェクト全体のオープンソースライセンスは **未選択** です。公開リポジトリであることはコード再利用の許諾を意味しません。依存ライブラリのライセンスとサンプルの出典は [第三者ライセンス情報](licenses/THIRD_PARTY.md) に記載しています。
+このプロジェクトは [MIT ライセンス](LICENSE) の下で公開されています。依存ライブラリのライセンスとサンプルの出典は [第三者ライセンス情報](licenses/THIRD_PARTY.md) に記載しています。
 
 README の見せ方は [Tripo Studio for Codex](https://github.com/GrinZero/tripo-studio-plugin) を参考にしました。ここで使うバナーとデモ画面は本プロジェクトのものです。

@@ -11,12 +11,12 @@
 <p align="center"><strong>Your local game production workbench for Codex.</strong></p>
 
 <p align="center">
-  <img src="docs/images/badges.svg" alt="Alpha · Node.js 24+ · Codex MCP Apps · Local SQLite · License not specified" width="100%" />
+  <img src="docs/images/badges.svg" alt="Alpha · Node.js 24+ · Codex MCP Apps · Local SQLite · MIT License" width="100%" />
 </p>
 
 Bring references, documents, media and 3D assets onto one visual canvas. Keep their versions, production decisions and exports connected to the project files on your machine.
 
-> **Alpha · macOS installer · No project license specified.** Local organization works on its own; AI production requires your own configured tools and accounts. README translations do not change the workbench UI, which currently uses Chinese labels.
+> **Alpha · macOS installer · MIT License.** Local organization works on its own; AI production requires your own configured tools and accounts. README translations do not change the workbench UI, which currently uses Chinese labels.
 
 [Try it](#try-it) · [Install](#install) · [Features](#features) · [Gallery](#gallery) · [Docs](#documentation) · [Limits](#limits)
 
@@ -133,6 +133,6 @@ For development commands, checks, build markers and runtime synchronization, see
 
 ## License and sources
 
-A project-level open-source license has **not been selected**. A public repository does not grant a license to reuse its code. Dependency licenses and original sample provenance are recorded in [Third-party notices](licenses/THIRD_PARTY.md).
+This project is licensed under the [MIT License](LICENSE). Dependency licenses and original sample provenance are recorded in [Third-party notices](licenses/THIRD_PARTY.md).
 
 README presentation takes inspiration from [Tripo Studio for Codex](https://github.com/GrinZero/tripo-studio-plugin); the banner and demo screenshots here belong to this project.
