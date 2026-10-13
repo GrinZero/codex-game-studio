@@ -5,7 +5,7 @@ description: Start or continue game production using Open Game Studio projects, 
 
 Use for organizing game production and continuing an existing asset task. Use normal workspace coding tools for gameplay code.
 
-Call `studio_open` first and resolve the intended project. All project operations require an explicit projectId. Read `project_open` before editing; resource identities and saved versions are the authority, not conversation history.
+Call `studio_open` first with the current Codex conversation's absolute working directory as `workspaceRoot`, or an explicit `projectId` when requested. This opens the matching registered project automatically. Never use the plugin install directory or a global last-used project as the conversation workspace. If no registered project matches, resolve the intended project from the returned list. All project operations require an explicit projectId. Read `project_open` before editing; resource identities and saved versions are the authority, not conversation history.
 
 Route project tasks to studio-project, canvas organization to canvas-authoring, import to asset-curation, characters to character-workflow, repairs to character-refinement and export to game-asset-delivery.
 

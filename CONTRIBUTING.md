@@ -68,6 +68,10 @@ Verify served HTTP and MCP artifacts, then refresh the user's actual workbench a
 
 The registry stores project locations. Each project's `.game-studio/studio.db` is authoritative; asset revisions live in `.game-studio/assets/<assetId>/<revisionId>/`, production outputs in `.game-studio/generated/`, and exports in `.game-studio/exports/`. JSON files are snapshots or exports, not a second source of truth.
 
+## Bundled project file guide
+
+The optional [project file guide](skills/studio-project/references/project-file-guide.md) is user-facing guidance for game projects, not a mandatory layout for this plugin repository. Keep its canonical copy, naming reference, engine profiles, VCS profiles, source coverage and upstream notices under `studio-project/references/` so installation and runtime synchronization carry the complete guide with the skill. The project skill only applies selected rules after user opt-in; registration must keep existing file organization and VCS choices. Keep the quick start approachable and the reference complete, preserve engine-specific requirements, and distinguish conversational assistance from implemented automation. The VCS reference is tool-neutral project guidance, not implemented service connectors. Validate relative links across the entire bundled guide when changing it.
+
 ## Keep documentation honest
 
 Maintain English in `README.md`, with Simplified Chinese, Traditional Chinese, Japanese and Korean counterparts. Keep section order, stable navigation anchors, table dimensions, commands, links and images aligned. Use natural language for each locale rather than sentence-by-sentence translation. The translated READMEs describe the same product; they do not imply a localized UI.

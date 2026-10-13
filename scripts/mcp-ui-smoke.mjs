@@ -1,4 +1,7 @@
+import { verifyNodeSizing } from "./node-sizing-smoke.mjs";
 import { verifyResourceComposer } from "./resource-composer-smoke.mjs";
+import { verifyCanvasDrop } from "./canvas-drop-smoke.mjs";
+import { verifyLongNote } from "./long-note-smoke.mjs";
 import { createServer } from "node:http";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import os from "node:os";
@@ -12,6 +15,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { chromium } from "playwright";
 import { verifyProjectCover } from "./cover-smoke.mjs";
 import { verifyResponsiveWorkspace } from "./responsive-smoke.mjs";
+import { verifyResponsiveHome } from "./home-responsive-smoke.mjs";
 import { verifyCanvasContextMenu } from "./context-menu-smoke.mjs";
 import { verifyCanvasInputs } from "./input-smoke.mjs";
 import { verifyModelPreview } from "./model-preview-smoke.mjs";
@@ -77,11 +81,19 @@ const host = await build({
 import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/app-bridge';
 const iframe = document.querySelector('iframe');
 const initialMode = new URLSearchParams(location.search).get('mode');
-const bridge = new AppBridge(null, {name:'test-host',version:'1.0.0'}, {serverTools:{},downloadFile:{}}, {hostContext:{theme:'dark',...(initialMode ? {displayMode:initialMode} : {})}});
+const bridge = new AppBridge(null, {name:'test-host',version:'1.0.0'}, {serverTools:{},serverResources:{},downloadFile:{},updateModelContext:{text:{}}}, {hostContext:{theme:'dark',...(initialMode ? {displayMode:initialMode} : {})}});
+window.__referenceUpdates = [];
+bridge.onupdatemodelcontext = async args => {
+  if (window.__rejectReferenceUpdate) throw new Error('引用更新被宿主拒绝');
+  window.__referenceUpdates.push(args);
+  return {};
+};
 window.__setStudioHostContext = context => bridge.setHostContext(context);
+window.__sendStudioLaunch = async (args, result) => { await bridge.sendToolInput({arguments:args}); await bridge.sendToolResult({content:[],structuredContent:{result}}); };
 bridge.oncalltool = async args => (await fetch('/tool', {method:'POST',body:JSON.stringify(args)})).json();
+bridge.onreadresource = async args => { const result = await (await fetch('/read-resource', {method:'POST',body:JSON.stringify(args)})).json(); if (result.error) throw new Error(result.error); return result; };
 bridge.ondownloadfile = async args => { await fetch('/download', {method:'POST',body:JSON.stringify(args)}); return {}; };
-bridge.oninitialized = () => { document.body.dataset.connected = 'true'; };
+bridge.oninitialized = () => { document.body.dataset.connected = 'true'; const projectId = new URLSearchParams(location.search).get('projectId'); if (projectId) bridge.sendToolInput({arguments:{projectId}}); };
 await bridge.connect(new PostMessageTransport(iframe.contentWindow, iframe.contentWindow));
 iframe.srcdoc = await (await fetch('/resource')).text();
 `,
@@ -92,6 +104,9 @@ iframe.srcdoc = await (await fetch('/resource')).text();
   format: "esm",
   minify: true,
 });
+let reloadResourceReads = 0;
+let reloadResourceFailure = false;
+let reloadResourceHtml;
 let downloaded;
 let directoryPicks = 0;
 let bridgeFileReads = 0;
@@ -107,6 +122,20 @@ const server = createServer(async (req, res) => {
           `<head><meta http-equiv="Content-Security-Policy" content="${csp}">`,
         ),
       );
+    } else if (req.url === "/read-resource") {
+      let body = "";
+      for await (const bytes of req) body += bytes;
+      const args = JSON.parse(body);
+      assert.equal(args.uri, "ui://game-studio/workbench");
+      reloadResourceReads++;
+      res.setHeader("Content-Type", "application/json");
+      if (reloadResourceFailure)
+        res.end(JSON.stringify({ error: "构建读取失败" }));
+      else {
+        const latest = await client.readResource(args);
+        if (reloadResourceHtml) latest.contents[0].text = reloadResourceHtml;
+        res.end(JSON.stringify(latest));
+      }
     } else if (req.url === "/tool" || req.url === "/download") {
       let body = "";
       for await (const bytes of req) body += bytes;
@@ -173,65 +202,60 @@ try {
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.waitForFunction(() => document.body.dataset.connected === "true");
   const ui = page.frameLocator("iframe");
-  await ui
-    .getByRole("button")
-    .filter({ hasText: "内嵌验收" })
-    .first()
-    .waitFor();
-  assert.equal(
-    await ui.locator("html").getAttribute("data-mcp-display-mode"),
-    "inline",
-    "missing host display mode defaults to a bounded embed",
-  );
-  async function verifyDisplayModes() {
-    for (const mode of ["inline", "fullscreen", "inline", "fullscreen"]) {
-      await page.evaluate(
-        (mode) => window.__setStudioHostContext({ displayMode: mode }),
-        mode,
-      );
-      await ui.locator(`html[data-mcp-display-mode="${mode}"]`).waitFor();
-      for (const height of [480, 720, 960, 1200]) {
-        await page.setViewportSize({ width: 1440, height });
-        await page.waitForTimeout(100);
-        const expectedHeight =
-          mode === "fullscreen" ? height : Math.min(height, 720);
-        assert.equal(
-          await ui
-            .locator(".app-shell")
-            .evaluate((element) => element.getBoundingClientRect().height),
-          expectedHeight,
-          `${mode} shell height at ${height}`,
-        );
-        if (await ui.locator(".workspace").count()) {
-          assert.equal(
-            await ui
-              .locator(".workspace")
-              .evaluate((element) => element.getBoundingClientRect().height),
-            expectedHeight,
-            `${mode} workspace height at ${height}`,
-          );
-        }
-      }
-      // Partial context changes must preserve the current display mode.
-      await page.evaluate(() =>
-        window.__setStudioHostContext({ theme: "dark" }),
-      );
-      assert.equal(
-        await ui.locator("html").getAttribute("data-mcp-display-mode"),
-        mode,
-      );
-    }
-  }
-  assert.equal(
+  if (process.env.STUDIO_TEST_LAUNCH_ONLY) {
+    mkdirSync("var/qa", { recursive: true });
+    await ui.locator(".project-card").waitFor();
+    await verifyResponsiveHome({ page, ui, prefix: "mcp" });
+    const opened = await client.callTool({
+      name: "studio_open",
+      arguments: { workspaceRoot: project.root },
+    });
+    await page.evaluate(
+      (result) => window.__sendStudioLaunch({}, result),
+      opened.structuredContent.result,
+    );
+    await ui.locator(".workspace").waitFor();
     await ui
-      .locator(".app-shell")
-      .evaluate((element) => element.getBoundingClientRect().height),
-    720,
-    "unspecified initial mode stays below 720px",
-  );
-  await verifyDisplayModes();
-  for (const mode of ["inline", "fullscreen"]) {
-    await page.goto(`http://127.0.0.1:${server.address().port}?mode=${mode}`);
+      .getByRole("button", { name: `查看${project.name}项目概览`, exact: true })
+      .waitFor();
+    await page.goto(
+      `http://127.0.0.1:${server.address().port}/?projectId=${project.id}`,
+    );
+    await ui.locator(".workspace").waitFor();
+    await ui
+      .getByRole("button", { name: `查看${project.name}项目概览`, exact: true })
+      .waitFor();
+    await page.goto(`${binaryOrigin}/?projectId=${project.id}`);
+    await page.locator(".workspace").waitFor();
+    await page
+      .getByRole("button", { name: `查看${project.name}项目概览`, exact: true })
+      .waitFor();
+    await page.goto(binaryOrigin);
+    await page.locator(".project-card").waitFor();
+    await verifyResponsiveHome({ page, prefix: "http" });
+    assert.deepEqual(errors, []);
+    console.log(
+      "PASS: HTTP/MCP responsive project index, early tool input, late tool result, workspace selection and browser project link.",
+    );
+  } else if (process.env.STUDIO_TEST_DROP_ONLY) {
+    await ui
+      .locator(".project-card-open")
+      .filter({ hasText: project.name })
+      .click();
+    await verifyCanvasDrop({
+      page,
+      ui,
+      prefix: "mcp-drop",
+      readSnapshot: async () =>
+        (
+          await client.callTool({
+            name: "project_open",
+            arguments: { projectId: project.id },
+          })
+        ).structuredContent.result,
+    });
+    assert.deepEqual(errors, []);
+  } else {
     await ui
       .getByRole("button")
       .filter({ hasText: "内嵌验收" })
@@ -239,232 +263,402 @@ try {
       .waitFor();
     assert.equal(
       await ui.locator("html").getAttribute("data-mcp-display-mode"),
-      mode,
-      `initial host mode ${mode}`,
+      "inline",
+      "missing host display mode defaults to a bounded embed",
     );
+    // A host may keep the original srcdoc cached even after the runtime updates.
+    // Read a newer bundle and navigate the iframe itself; repeated refreshes must
+    // reinitialize the MCP bridge and keep the project registry available.
+    const originalMarker =
+      resource.contents[0].text.match(/v0\.1\.7-\d{14}/)[0];
+    const newerMarker = "v0.1.7-20990101010101";
+    const versionButton = () =>
+      ui.getByRole("button", { name: /重新加载工作台/ });
+    reloadResourceFailure = true;
+    await versionButton().click();
+    await ui.getByRole("alert").filter({ hasText: "重新加载失败" }).waitFor();
+    assert.ok(await versionButton().isEnabled());
+    await ui.getByRole("button", { name: "关闭刷新提示", exact: true }).click();
+    reloadResourceFailure = false;
+    reloadResourceHtml = resource.contents[0].text.replaceAll(
+      originalMarker.slice(-14),
+      newerMarker.slice(-14),
+    );
+    await versionButton().click();
+    await ui
+      .getByRole("button", {
+        name: `重新加载工作台 · ${newerMarker}`,
+        exact: true,
+      })
+      .waitFor();
+    assert.ok(
+      (await ui.locator("html").evaluate(() => location.href)).startsWith(
+        "blob:",
+      ),
+    );
+    assert.ok(
+      (await page.locator("iframe").getAttribute("srcdoc")).includes(
+        originalMarker,
+      ),
+    );
+    await ui
+      .getByRole("button")
+      .filter({ hasText: "内嵌验收" })
+      .first()
+      .waitFor();
+    reloadResourceHtml = undefined;
+    await versionButton().press("Enter");
+    await ui
+      .getByRole("button", {
+        name: `重新加载工作台 · ${originalMarker}`,
+        exact: true,
+      })
+      .waitFor();
+    await ui
+      .getByRole("button")
+      .filter({ hasText: "内嵌验收" })
+      .first()
+      .waitFor();
+    assert.equal(reloadResourceReads, 3);
+    mkdirSync("var/qa", { recursive: true });
+    await page.screenshot({ path: "var/qa/mcp-version-reload.png" });
+    console.log(
+      "PASS: version button loads the latest MCP document despite cached srcdoc, reconnects repeatedly, and preserves the page after read failure.",
+    );
+    async function verifyDisplayModes() {
+      for (const mode of ["inline", "fullscreen", "inline", "fullscreen"]) {
+        await page.evaluate(
+          (mode) => window.__setStudioHostContext({ displayMode: mode }),
+          mode,
+        );
+        await ui.locator(`html[data-mcp-display-mode="${mode}"]`).waitFor();
+        for (const height of [480, 720, 960, 1200]) {
+          await page.setViewportSize({ width: 1440, height });
+          await page.waitForTimeout(100);
+          const expectedHeight =
+            mode === "fullscreen" ? height : Math.min(height, 720);
+          assert.equal(
+            await ui
+              .locator(".app-shell")
+              .evaluate((element) => element.getBoundingClientRect().height),
+            expectedHeight,
+            `${mode} shell height at ${height}`,
+          );
+          if (await ui.locator(".workspace").count()) {
+            assert.equal(
+              await ui
+                .locator(".workspace")
+                .evaluate((element) => element.getBoundingClientRect().height),
+              expectedHeight,
+              `${mode} workspace height at ${height}`,
+            );
+          }
+        }
+        // Partial context changes must preserve the current display mode.
+        await page.evaluate(() =>
+          window.__setStudioHostContext({ theme: "dark" }),
+        );
+        assert.equal(
+          await ui.locator("html").getAttribute("data-mcp-display-mode"),
+          mode,
+        );
+      }
+    }
     assert.equal(
       await ui
         .locator(".app-shell")
         .evaluate((element) => element.getBoundingClientRect().height),
-      mode === "fullscreen" ? 1200 : 720,
-      `initial ${mode} shell height`,
+      720,
+      "unspecified initial mode stays below 720px",
+    );
+    await verifyDisplayModes();
+    for (const mode of ["inline", "fullscreen"]) {
+      await page.goto(`http://127.0.0.1:${server.address().port}?mode=${mode}`);
+      await ui
+        .getByRole("button")
+        .filter({ hasText: "内嵌验收" })
+        .first()
+        .waitFor();
+      assert.equal(
+        await ui.locator("html").getAttribute("data-mcp-display-mode"),
+        mode,
+        `initial host mode ${mode}`,
+      );
+      assert.equal(
+        await ui
+          .locator(".app-shell")
+          .evaluate((element) => element.getBoundingClientRect().height),
+        mode === "fullscreen" ? 1200 : 720,
+        `initial ${mode} shell height`,
+      );
+    }
+    await page.setViewportSize({ width: 1440, height: 960 });
+    await ui
+      .getByRole("button")
+      .filter({ hasText: "内嵌验收" })
+      .first()
+      .click();
+    await ui.getByText("这是你的创作画布").waitFor();
+    await verifyDisplayModes();
+    console.log(
+      "PASS: inline/missing mode caps at 720px; fullscreen fills host; home/workspace resize and mode transitions preserve the correct height.",
+    );
+    await page.setViewportSize({ width: 1440, height: 960 });
+    mkdirSync("var/qa", { recursive: true });
+    await verifyResponsiveWorkspace({ page, ui, prefix: "mcp" });
+    await ui
+      .locator("input[type=file]")
+      .setInputFiles(path.resolve("samples/reference.png"));
+    await ui
+      .getByRole("dialog")
+      .getByLabel("资源名称", { exact: true })
+      .fill("内嵌参考图");
+    await ui
+      .getByRole("button", { name: "导入并登记版本", exact: true })
+      .click();
+    await ui
+      .locator(".asset-dock")
+      .getByRole("button", { name: "展开全部", exact: true })
+      .click();
+    await ui.getByRole("button", { name: "内嵌参考图 图片 · v1" }).click();
+    await ui.locator(".asset-preview img").waitFor();
+    await ui.locator(".asset-preview img").evaluate((img) => img.decode());
+    await ui
+      .getByRole("button", { name: "添加到当前画布", exact: true })
+      .click();
+    await ui.locator(".asset-node img").evaluate((img) => img.decode());
+    await ui.getByRole("button", { name: "便签", exact: true }).click();
+    await ui
+      .getByRole("dialog")
+      .getByLabel("内容", { exact: true })
+      .fill("沙箱内保存，重新加载接续。");
+    await ui
+      .getByRole("dialog")
+      .getByRole("button", { name: "保存", exact: true })
+      .click();
+    await ui.locator(".note-node").waitFor();
+    const snapshot = (
+      await client.callTool({
+        name: "project_open",
+        arguments: { projectId: project.id },
+      })
+    ).structuredContent.result;
+    assert.equal(snapshot.assets.length, 1);
+    assert.equal(snapshot.canvases[0].nodes.length, 2);
+    await ui.locator(".asset-node").click();
+    await ui.getByText("文件与完整性哈希", { exact: true }).click();
+    await ui.getByRole("link", { name: "reference.png", exact: true }).click();
+    for (let i = 0; i < 20 && !downloaded; i++) await page.waitForTimeout(100);
+    assert.ok(downloaded.contents[0].resource.blob);
+    await verifyModelPreview({
+      page,
+      ui,
+      prefix: "mcp",
+      readSnapshot: async () =>
+        (
+          await client.callTool({
+            name: "project_open",
+            arguments: { projectId: project.id },
+          })
+        ).structuredContent.result,
+    });
+    await ui.locator(".asset-node").filter({ hasText: "内嵌参考图" }).click();
+    await ui.getByRole("button", { name: "制作角色", exact: true }).click();
+    await ui.getByRole("button", { name: "添加制作分组", exact: true }).click();
+    await ui.locator(".workflow-node").first().waitFor();
+    await verifyCanvasInputs({
+      page,
+      ui,
+      prefix: "mcp",
+      readSnapshot: async () =>
+        (
+          await client.callTool({
+            name: "project_open",
+            arguments: { projectId: project.id },
+          })
+        ).structuredContent.result,
+    });
+    await verifyCanvasContextMenu({
+      page,
+      ui,
+      prefix: "mcp",
+      readDownload: () => downloaded,
+      readSnapshot: async () =>
+        (
+          await client.callTool({
+            name: "project_open",
+            arguments: { projectId: project.id },
+          })
+        ).structuredContent.result,
+    });
+    await verifyLongNote({
+      page,
+      ui,
+      prefix: "mcp",
+      readSnapshot: async () =>
+        (
+          await client.callTool({
+            name: "project_open",
+            arguments: { projectId: project.id },
+          })
+        ).structuredContent.result,
+    });
+    await verifyNodeSizing({
+      page,
+      ui,
+      prefix: "mcp",
+      readSnapshot: async () =>
+        (
+          await client.callTool({
+            name: "project_open",
+            arguments: { projectId: project.id },
+          })
+        ).structuredContent.result,
+    });
+    await ui.getByRole("button", { name: "全部项目", exact: true }).click();
+    await ui.getByRole("button", { name: "新建项目", exact: true }).click();
+    await ui.getByLabel("项目名称", { exact: true }).fill("内嵌新建");
+    await ui.getByRole("button", { name: "选择文件夹", exact: true }).click();
+    await ui.getByRole("button", { name: "选择文件夹", exact: true }).waitFor();
+    assert.equal(
+      await ui.getByLabel("项目目录", { exact: true }).inputValue(),
+      "",
+    );
+    await ui.getByRole("button", { name: "选择文件夹", exact: true }).click();
+    await ui.getByRole("button", { name: "选择文件夹", exact: true }).waitFor();
+    assert.equal(
+      await ui.getByLabel("项目目录", { exact: true }).inputValue(),
+      dir,
+    );
+    const subdirectory = ui.getByRole("checkbox", {
+      name: "按项目名称创建子文件夹",
+    });
+    assert.equal(await subdirectory.isChecked(), false);
+    assert.equal(
+      await ui.getByLabel("最终项目路径", { exact: true }).textContent(),
+      dir,
+    );
+    await subdirectory.check();
+    assert.equal(
+      await ui.getByLabel("父目录", { exact: true }).inputValue(),
+      dir,
+    );
+    assert.equal(
+      await ui.getByLabel("最终项目路径", { exact: true }).textContent(),
+      path.join(dir, "内嵌新建"),
+    );
+    await ui.getByRole("button", { name: "创建项目", exact: true }).click();
+    await ui.getByText("这是你的创作画布").waitFor();
+    const projects = (
+      await client.callTool({ name: "studio_open", arguments: {} })
+    ).structuredContent.result.projects;
+    assert.equal(projects.length, 2);
+    assert.equal(
+      projects.find((p) => p.name === "内嵌新建").root,
+      realpathSync(path.join(dir, "内嵌新建")),
+    );
+    assert.equal(errors.length, 0, errors.join("\n"));
+    await ui.getByRole("button", { name: "全部项目", exact: true }).click();
+    await ui.getByRole("button", { name: "关联已有项目", exact: true }).click();
+    await ui.getByLabel("项目名称", { exact: true }).fill("已有游戏");
+    await ui.getByRole("button", { name: "选择文件夹", exact: true }).click();
+    await ui.getByRole("button", { name: "选择文件夹", exact: true }).waitFor();
+    assert.equal(
+      await ui.getByLabel("项目目录", { exact: true }).inputValue(),
+      existingDirectory,
+    );
+    await ui.getByRole("button", { name: "关联项目", exact: true }).click();
+    await ui.getByText("这是你的创作画布").waitFor();
+    const linked = (
+      await client.callTool({ name: "studio_open", arguments: {} })
+    ).structuredContent.result.projects;
+    assert.equal(linked.length, 3);
+    assert.equal(
+      linked.find((p) => p.name === "已有游戏").root,
+      realpathSync(existingDirectory),
+    );
+    await ui.getByRole("button", { name: "全部项目", exact: true }).click();
+    await ui
+      .locator(".project-card-open")
+      .filter({ hasText: project.name })
+      .click();
+    await verifyProjectCover({
+      page,
+      ui,
+      project,
+      readSnapshot: async () =>
+        (
+          await client.callTool({
+            name: "project_open",
+            arguments: { projectId: project.id },
+          })
+        ).structuredContent.result,
+    });
+    assert.deepEqual(errors, []);
+    assert.ok(
+      httpFileReads > 0,
+      "the embedded app attempted binary HTTP reads",
+    );
+    if (process.env.STUDIO_TEST_ASSET_BRIDGE_ONLY)
+      assert.ok(
+        bridgeFileReads > 0,
+        "blocked HTTP fell back to the MCP bridge",
+      );
+    else
+      assert.equal(
+        bridgeFileReads,
+        0,
+        "binary HTTP did not transfer any base64 file chunks",
+      );
+    await verifyResourceComposer({
+      page,
+      ui,
+      prefix: "mcp",
+      readSnapshot: async () =>
+        (
+          await client.callTool({
+            name: "project_open",
+            arguments: { projectId: project.id },
+          })
+        ).structuredContent.result,
+    });
+    await verifyCanvasDrop({
+      page,
+      ui,
+      prefix: "mcp",
+      readSnapshot: async () =>
+        (
+          await client.callTool({
+            name: "project_open",
+            arguments: { projectId: project.id },
+          })
+        ).structuredContent.result,
+    });
+    mkdirSync("var/qa", { recursive: true });
+    await page.screenshot({ path: "var/qa/mcp-embedded-workbench.png" });
+    console.log(
+      `PASS: opaque sandbox, models/images, shared Blob lifetime, host download; ${httpFileReads} binary HTTP reads and ${bridgeFileReads} bridge file chunks.`,
+    );
+    await page.route("**/tool", async (route) => {
+      const args = route.request().postDataJSON();
+      if (args.arguments?.path !== "/api/tools/studio_open")
+        return route.continue();
+      const response = await route.fetch();
+      const data = await response.json();
+      delete data.structuredContent.result.build;
+      await route.fulfill({ response, json: data });
+    });
+    await page.reload();
+    await ui.getByText("工作台已升级，需要重新连接", { exact: true }).waitFor();
+    assert.equal(
+      await ui.getByRole("button", { name: "添加资源", exact: true }).count(),
+      0,
+    );
+    await page.screenshot({ path: "var/qa/mcp-stale-service.png" });
+    console.log(
+      "PASS: an older MCP connection shows a reconnect screen instead of unsupported resource actions.",
     );
   }
-  await page.setViewportSize({ width: 1440, height: 960 });
-  await ui.getByRole("button").filter({ hasText: "内嵌验收" }).first().click();
-  await ui.getByText("这是你的创作画布").waitFor();
-  await verifyDisplayModes();
-  console.log(
-    "PASS: inline/missing mode caps at 720px; fullscreen fills host; home/workspace resize and mode transitions preserve the correct height.",
-  );
-  await page.setViewportSize({ width: 1440, height: 960 });
-  mkdirSync("var/qa", { recursive: true });
-  await verifyResponsiveWorkspace({ page, ui, prefix: "mcp" });
-  await ui
-    .locator("input[type=file]")
-    .setInputFiles(path.resolve("samples/reference.png"));
-  await ui
-    .getByRole("dialog")
-    .getByLabel("资源名称", { exact: true })
-    .fill("内嵌参考图");
-  await ui.getByRole("button", { name: "导入并登记版本", exact: true }).click();
-  await ui
-    .locator(".asset-dock")
-    .getByRole("button", { name: "展开全部", exact: true })
-    .click();
-  await ui.getByRole("button", { name: "内嵌参考图 图片 · v1" }).click();
-  await ui.locator(".asset-preview img").waitFor();
-  await ui.locator(".asset-preview img").evaluate((img) => img.decode());
-  await ui.getByRole("button", { name: "添加到当前画布", exact: true }).click();
-  await ui.locator(".asset-node img").evaluate((img) => img.decode());
-  await ui.getByRole("button", { name: "便签", exact: true }).click();
-  await ui
-    .getByRole("dialog")
-    .getByLabel("内容", { exact: true })
-    .fill("沙箱内保存，重新加载接续。");
-  await ui
-    .getByRole("dialog")
-    .getByRole("button", { name: "保存", exact: true })
-    .click();
-  await ui.locator(".note-node").waitFor();
-  const snapshot = (
-    await client.callTool({
-      name: "project_open",
-      arguments: { projectId: project.id },
-    })
-  ).structuredContent.result;
-  assert.equal(snapshot.assets.length, 1);
-  assert.equal(snapshot.canvases[0].nodes.length, 2);
-  await ui.locator(".asset-node").click();
-  await ui.getByText("文件与完整性哈希", { exact: true }).click();
-  await ui.getByRole("link", { name: "reference.png", exact: true }).click();
-  for (let i = 0; i < 20 && !downloaded; i++) await page.waitForTimeout(100);
-  assert.ok(downloaded.contents[0].resource.blob);
-  await verifyModelPreview({
-    page,
-    ui,
-    prefix: "mcp",
-    readSnapshot: async () =>
-      (
-        await client.callTool({
-          name: "project_open",
-          arguments: { projectId: project.id },
-        })
-      ).structuredContent.result,
-  });
-  await ui.locator(".asset-node").filter({ hasText: "内嵌参考图" }).click();
-  await ui.getByRole("button", { name: "制作角色", exact: true }).click();
-  await ui.getByRole("button", { name: "添加制作分组", exact: true }).click();
-  await ui.locator(".workflow-node").first().waitFor();
-  await verifyCanvasInputs({
-    page,
-    ui,
-    prefix: "mcp",
-    readSnapshot: async () =>
-      (
-        await client.callTool({
-          name: "project_open",
-          arguments: { projectId: project.id },
-        })
-      ).structuredContent.result,
-  });
-  await verifyCanvasContextMenu({
-    page,
-    ui,
-    prefix: "mcp",
-    readDownload: () => downloaded,
-    readSnapshot: async () =>
-      (
-        await client.callTool({
-          name: "project_open",
-          arguments: { projectId: project.id },
-        })
-      ).structuredContent.result,
-  });
-  await ui.getByRole("button", { name: "全部项目", exact: true }).click();
-  await ui.getByRole("button", { name: "新建项目", exact: true }).click();
-  await ui.getByLabel("项目名称", { exact: true }).fill("内嵌新建");
-  await ui.getByRole("button", { name: "选择文件夹", exact: true }).click();
-  await ui.getByRole("button", { name: "选择文件夹", exact: true }).waitFor();
-  assert.equal(
-    await ui.getByLabel("项目目录", { exact: true }).inputValue(),
-    "",
-  );
-  await ui.getByRole("button", { name: "选择文件夹", exact: true }).click();
-  await ui.getByRole("button", { name: "选择文件夹", exact: true }).waitFor();
-  assert.equal(
-    await ui.getByLabel("项目目录", { exact: true }).inputValue(),
-    dir,
-  );
-  const subdirectory = ui.getByRole("checkbox", {
-    name: "按项目名称创建子文件夹",
-  });
-  assert.equal(await subdirectory.isChecked(), false);
-  assert.equal(
-    await ui.getByLabel("最终项目路径", { exact: true }).textContent(),
-    dir,
-  );
-  await subdirectory.check();
-  assert.equal(
-    await ui.getByLabel("父目录", { exact: true }).inputValue(),
-    dir,
-  );
-  assert.equal(
-    await ui.getByLabel("最终项目路径", { exact: true }).textContent(),
-    path.join(dir, "内嵌新建"),
-  );
-  await ui.getByRole("button", { name: "创建项目", exact: true }).click();
-  await ui.getByText("这是你的创作画布").waitFor();
-  const projects = (
-    await client.callTool({ name: "studio_open", arguments: {} })
-  ).structuredContent.result.projects;
-  assert.equal(projects.length, 2);
-  assert.equal(
-    projects.find((p) => p.name === "内嵌新建").root,
-    realpathSync(path.join(dir, "内嵌新建")),
-  );
-  assert.equal(errors.length, 0, errors.join("\n"));
-  await ui.getByRole("button", { name: "全部项目", exact: true }).click();
-  await ui.getByRole("button", { name: "关联已有项目", exact: true }).click();
-  await ui.getByLabel("项目名称", { exact: true }).fill("已有游戏");
-  await ui.getByRole("button", { name: "选择文件夹", exact: true }).click();
-  await ui.getByRole("button", { name: "选择文件夹", exact: true }).waitFor();
-  assert.equal(
-    await ui.getByLabel("项目目录", { exact: true }).inputValue(),
-    existingDirectory,
-  );
-  await ui.getByRole("button", { name: "关联项目", exact: true }).click();
-  await ui.getByText("这是你的创作画布").waitFor();
-  const linked = (await client.callTool({ name: "studio_open", arguments: {} }))
-    .structuredContent.result.projects;
-  assert.equal(linked.length, 3);
-  assert.equal(
-    linked.find((p) => p.name === "已有游戏").root,
-    realpathSync(existingDirectory),
-  );
-  await ui.getByRole("button", { name: "全部项目", exact: true }).click();
-  await ui
-    .locator(".project-card-open")
-    .filter({ hasText: project.name })
-    .click();
-  await verifyProjectCover({
-    page,
-    ui,
-    project,
-    readSnapshot: async () =>
-      (
-        await client.callTool({
-          name: "project_open",
-          arguments: { projectId: project.id },
-        })
-      ).structuredContent.result,
-  });
-  assert.deepEqual(errors, []);
-  assert.ok(httpFileReads > 0, "the embedded app attempted binary HTTP reads");
-  if (process.env.STUDIO_TEST_ASSET_BRIDGE_ONLY)
-    assert.ok(bridgeFileReads > 0, "blocked HTTP fell back to the MCP bridge");
-  else
-    assert.equal(
-      bridgeFileReads,
-      0,
-      "binary HTTP did not transfer any base64 file chunks",
-    );
-  await verifyResourceComposer({
-    page,
-    ui,
-    prefix: "mcp",
-    readSnapshot: async () =>
-      (
-        await client.callTool({
-          name: "project_open",
-          arguments: { projectId: project.id },
-        })
-      ).structuredContent.result,
-  });
-  mkdirSync("var/qa", { recursive: true });
-  await page.screenshot({ path: "var/qa/mcp-embedded-workbench.png" });
-  console.log(
-    `PASS: opaque sandbox, models/images, shared Blob lifetime, host download; ${httpFileReads} binary HTTP reads and ${bridgeFileReads} bridge file chunks.`,
-  );
-  await page.route("**/tool", async (route) => {
-    const args = route.request().postDataJSON();
-    if (args.arguments?.path !== "/api/tools/studio_open")
-      return route.continue();
-    const response = await route.fetch();
-    const data = await response.json();
-    delete data.structuredContent.result.build;
-    await route.fulfill({ response, json: data });
-  });
-  await page.reload();
-  await ui.getByText("工作台已升级，需要重新连接", { exact: true }).waitFor();
-  assert.equal(
-    await ui.getByRole("button", { name: "添加资源", exact: true }).count(),
-    0,
-  );
-  await page.screenshot({ path: "var/qa/mcp-stale-service.png" });
-  console.log(
-    "PASS: an older MCP connection shows a reconnect screen instead of unsupported resource actions.",
-  );
 } catch (error) {
   console.error("UI errors:", errors);
   console.error(

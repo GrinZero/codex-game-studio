@@ -5,9 +5,17 @@ import path from "node:path";
 import os from "node:os";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { ListRootsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { pathToFileURL } from "node:url";
+import { DatabaseSync } from "node:sqlite";
 test("真实 stdio MCP 握手、工具发现与 HTTP 同领域项目状态", async () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), "studio-mcp-"));
-  const client = new Client({ name: "studio-test", version: "1.0.0" });
+  const client = new Client(
+    { name: "studio-test", version: "1.0.0" },
+    { capabilities: { roots: {} } },
+  );
+  let roots: { uri: string }[] = [];
+  client.setRequestHandler(ListRootsRequestSchema, async () => ({ roots }));
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: ["./node_modules/tsx/dist/cli.mjs", "src/server/mcp.ts"],
@@ -18,6 +26,7 @@ test("真实 stdio MCP 握手、工具发现与 HTTP 同领域项目状态", asy
         ),
       ),
       STUDIO_HOME: path.join(dir, "registry"),
+      CODEX_HOME: dir,
     },
     stderr: "pipe",
   });
@@ -81,6 +90,51 @@ test("真实 stdio MCP 握手、工具发现与 HTTP 同领域项目状态", asy
     });
     const p = (result.structuredContent as any).result;
     assert.ok(p.id);
+    const threadId = "01900000-0000-7000-8000-000000000001";
+    const state = new DatabaseSync(path.join(dir, "state_5.sqlite"));
+    state.exec("CREATE TABLE threads(id TEXT PRIMARY KEY, cwd TEXT NOT NULL)");
+    state.prepare("INSERT INTO threads VALUES (?, ?)").run(threadId, p.root);
+    state.close();
+    const nativeOpen = await client.callTool({
+      name: "studio_open",
+      arguments: {},
+      _meta: { threadId },
+    });
+    assert.equal(
+      (nativeOpen.structuredContent as any).result.project.project.id,
+      p.id,
+    );
+    const nativeBridge = await client.callTool({
+      name: "studio_ui_request",
+      arguments: { path: "/api/tools/studio_open", method: "POST", body: {} },
+      _meta: { threadId },
+    });
+    assert.equal(
+      (nativeBridge.structuredContent as any).result.project.project.id,
+      p.id,
+    );
+    roots = [{ uri: pathToFileURL(p.root).href }];
+    const automatic = await client.callTool({
+      name: "studio_open",
+      arguments: {},
+    });
+    assert.equal(
+      (automatic.structuredContent as any).result.project.project.id,
+      p.id,
+    );
+    assert.ok(
+      (automatic.structuredContent as any).result.url.includes(
+        `projectId=${p.id}`,
+      ),
+    );
+    const automaticBridge = await client.callTool({
+      name: "studio_ui_request",
+      arguments: { path: "/api/tools/studio_open", method: "POST", body: {} },
+    });
+    assert.equal(
+      (automaticBridge.structuredContent as any).result.project.project.id,
+      p.id,
+    );
     const snapshot = await client.callTool({
       name: "project_open",
       arguments: { projectId: p.id },

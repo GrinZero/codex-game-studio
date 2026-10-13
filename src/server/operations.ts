@@ -1,6 +1,7 @@
 import { studioBuild } from "../shared/build.js";
 import { z } from "zod";
 import { StudioCore, StudioError } from "./core.js";
+import { workspaceProject } from "./workspace-project.js";
 import {
   generationCapabilities,
   startGeneration,
@@ -10,8 +11,12 @@ const id = z.string().min(1).max(100);
 export const tools = {
   studio_open: {
     description:
-      "打开 Open Game Studio 侧边栏或聊天内嵌工作台，返回项目和备用浏览器入口。",
-    schema: z.object({ projectId: id.optional() }),
+      "打开 Open Game Studio 工作台。自动匹配当前会话工作区；调用时请传当前会话的绝对工作目录 workspaceRoot，或显式 projectId。",
+    schema: z.object({
+      projectId: id.optional(),
+      workspaceRoot: z.string().max(4096).optional(),
+      workspaceRoots: z.array(z.string().max(4096)).max(32).optional(),
+    }),
   },
   project_manage: {
     description:
@@ -177,7 +182,7 @@ export const tools = {
   },
   canvas_patch: {
     description:
-      "提交 CAS 画布变更。reference 连线绑定上游固定版本与便签输入；instantiate 支持 inputNodeIds 或 inputRevisionIds。graph 支持 add/remove/note/connect/disconnect/instantiate；layout 支持 move/viewport。不执行生成。",
+      "提交 CAS 画布变更。reference 连线绑定上游固定版本与便签输入；instantiate 支持 inputNodeIds 或 inputRevisionIds。graph 支持 add/remove/note/connect/disconnect/instantiate；note 可更新 title 或 text，省略字段保留原值；layout 支持 move/resize/viewport；resize 使用 id、width（160–4000）、height（120–4000），宽高同时为 null 恢复默认。不执行生成。",
     schema: z.object({
       projectId: id,
       canvasId: id,
@@ -268,13 +273,21 @@ export function dispatch(
   if (!Object.hasOwn(tools, name)) throw new StudioError(404, "工具不存在");
   const a = tools[name as ToolName].schema.parse(args) as Record<string, any>;
   switch (name) {
-    case "studio_open":
+    case "studio_open": {
+      const projects = core.listProjects();
+      const projectId =
+        a.projectId ||
+        workspaceProject(
+          projects,
+          a.workspaceRoot ? [a.workspaceRoot] : a.workspaceRoots || [],
+        );
       return {
         schemaVersion: 1,
         build: studioBuild,
-        projects: core.listProjects(),
-        project: a.projectId ? core.snapshot(a.projectId) : undefined,
-        url: `http://127.0.0.1:${process.env.PORT || 4310}`,
+        workspaceRoot: a.workspaceRoot,
+        projects,
+        project: projectId ? core.snapshot(projectId) : undefined,
+        url: `http://127.0.0.1:${process.env.PORT || 4310}${projectId ? `/?projectId=${encodeURIComponent(projectId)}` : ""}`,
         capabilities: {
           webUI: true,
           mcpTools: true,
@@ -284,6 +297,7 @@ export function dispatch(
           engine: "not_verified",
         },
       };
+    }
     case "project_manage":
       return core.projectManage(a);
     case "project_open":

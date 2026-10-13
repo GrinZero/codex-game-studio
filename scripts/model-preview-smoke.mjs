@@ -72,7 +72,9 @@ export async function verifyModelPreview({
     .getByLabel("资源名称", { exact: true })
     .fill(name);
   await ui.getByRole("button", { name: "导入并登记版本", exact: true }).click();
-  const expand = ui.locator(".asset-dock").getByRole("button", { name: "展开全部", exact: true });
+  const expand = ui
+    .locator(".asset-dock")
+    .getByRole("button", { name: "展开全部", exact: true });
   if (await expand.isVisible()) await expand.click();
   await ui.getByRole("button", { name: `${name} 3D 模型 · v1` }).click();
   const inspector = ui.locator(".asset-preview model-viewer");
@@ -118,12 +120,18 @@ export async function verifyModelPreview({
   await expect
     .poll(() => canvasViewer.evaluate((el) => el.loaded), { timeout: 30000 })
     .toBe(true);
-  assert.equal(await canvasViewer.evaluate((el) => el.cameraControls), false);
+  assert.equal(await canvasViewer.evaluate((el) => el.cameraControls), true);
   assert.equal(await canvasViewer.evaluate((el) => el.autoRotate), true);
   await card
     .getByRole("combobox", { name: `${name} 动画` })
     .selectOption("Jump");
   assert.equal(await canvasViewer.evaluate((el) => el.animationName), "Jump");
+  await canvasViewer.evaluate((el) => {
+    el.autoRotate = false;
+  });
+  const canvasTheta = await canvasViewer.evaluate(
+    (el) => el.getCameraOrbit().theta,
+  );
   const before = await readSnapshot();
   const asset = before.assets.find((asset) => asset.name === name);
   const canvas = before.canvases.find((canvas) =>
@@ -143,29 +151,28 @@ export async function verifyModelPreview({
   );
   await page.mouse.up();
   await expect
-    .poll(
-      async () =>
-        (await readSnapshot()).canvases
-          .find((c) => c.id === canvas.id)
-          .nodes.find((n) => n.id === node.id).position,
-    )
-    .not.toEqual(node.position);
-  assert.equal(
-    (await readSnapshot()).canvases.find((c) => c.id === canvas.id)
-      .graphRevision,
-    canvas.graphRevision,
+    .poll(() => canvasViewer.evaluate((el) => el.getCameraOrbit().theta))
+    .not.toBe(canvasTheta);
+  assert.deepEqual(
+    (await readSnapshot()).canvases
+      .find((c) => c.id === canvas.id)
+      .nodes.find((n) => n.id === node.id).position,
+    node.position,
   );
-  const viewport = (await readSnapshot()).canvases.find(
-    (c) => c.id === canvas.id,
-  ).viewport;
-  await page.mouse.wheel(0, 80);
+  await card.getByRole("button", { name: `放大查看 ${name}` }).click();
+  const dialog = ui.getByRole("dialog", { name: `模型预览 ${name}` });
+  await expect(dialog).toBeVisible();
+  const enlarged = dialog.locator("model-viewer");
   await expect
-    .poll(
-      async () =>
-        (await readSnapshot()).canvases.find((c) => c.id === canvas.id).viewport
-          .y,
-    )
-    .not.toBe(viewport.y);
+    .poll(() => enlarged.evaluate((el) => el.loaded), { timeout: 30000 })
+    .toBe(true);
+  await dialog.getByRole("button", { name: "自动旋转：开" }).click();
+  assert.equal(await enlarged.evaluate((el) => el.autoRotate), false);
+  await dialog.getByRole("button", { name: "暂停动画" }).click();
+  assert.equal(await enlarged.evaluate((el) => el.paused), true);
+  await dialog.getByRole("button", { name: "重置视角" }).click();
+  await dialog.getByRole("button", { name: "关闭模型预览" }).click();
+  await expect(dialog).toHaveCount(0);
   await ui.getByRole("button", { name: "fit view" }).click();
 
   // Updating the library must leave the model on the canvas pinned to v1.

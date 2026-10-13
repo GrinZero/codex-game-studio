@@ -1,5 +1,7 @@
 # Sources and dependencies
 
+The optional [game project file guide](../skills/studio-project/references/project-file-guide.md) adapts organization and naming guidance from [Allar / Gamemakin](https://github.com/Allar/ue5-style-guide) and [bakneko](https://github.com/bakneko/godot-style-guide). Both use the MIT License. Their [Gamemakin notice](../skills/studio-project/references/third-party/allar-MIT.txt) and [Bakneko notice](../skills/studio-project/references/third-party/bakneko-MIT.txt) ship with the skill. [Source coverage](../skills/studio-project/references/guide-sources.md) distinguishes adopted rules, cross-engine adaptations and original additions.
+
 The embedded workbench uses the official MCP Apps SDK (MIT), OpenAI MCP Extensions (Apache-2.0), and esbuild (MIT). Sidebar registration follows the documented SDK metadata contract. No implementation code from the user's other workbench plugins is bundled.
 
 The initial domain model, UI, workflow and skill text are original implementations guided by the supplied product design. This build does not include ohmygame, Charakuru or UniMate source, skill text, model weights or character materials.

@@ -14,7 +14,10 @@ import {
   type AddResourceKind,
 } from "./ResourceComposer";
 import studioIcon from "../../assets/icon.svg";
+import { CodexHandoff } from "./CodexHandoff";
+import { CodexReferenceBar } from "./CodexReferences";
 import { VersionBadge } from "./VersionBadge";
+import { launchProject, subscribeLaunch } from "./workbench-launch";
 import {
   useCallback,
   useEffect,
@@ -29,6 +32,7 @@ import {
   MiniMap,
   MarkerType,
   Handle,
+  NodeResizer,
   Position,
   applyNodeChanges,
   applyEdgeChanges,
@@ -76,6 +80,7 @@ import {
   Square,
   Pencil,
   Grip,
+  Link2,
   Folder,
   Loader2,
   Sun,
@@ -115,6 +120,12 @@ import { ModelPreview } from "./ModelPreview";
 import { AssetGroups, AssetCategoryEditor } from "./AssetCategories";
 import { assetCategories, assetCategory } from "../shared/asset-categories";
 import { CanvasContextMenu, type CanvasMenuAction } from "./CanvasContextMenu";
+import {
+  acceptsCanvasDrop,
+  captureCanvasImageDrop,
+  resolveCanvasImages,
+  type CanvasImageDrop,
+} from "./canvas-drop";
 import {
   canvasClipboard,
   copyCanvasSelection,
@@ -237,10 +248,12 @@ function Modal({
   title,
   children,
   onClose,
+  className,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
+  className?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -249,6 +262,7 @@ function Modal({
   return (
     <dialog
       ref={ref}
+      className={className}
       aria-label={title}
       onCancel={onClose}
       onClick={(e) => {
@@ -270,7 +284,12 @@ export function App() {
   const { resolvedTheme, toggleTheme } = useTheme();
   const [projects, setProjects] = useState<Project[]>([]);
   const [snapshot, setSnapshot] = useState<ProjectSnapshot>();
-  const [projectId, setProjectId] = useState<string>();
+  const [projectId, setProjectId] = useState<string | undefined>(launchProject);
+  const [homeNavigation, setHomeNavigation] = useResponsivePanel(
+    "(max-width: 1100px)",
+  );
+  const homeToggleRef = useRef<HTMLButtonElement>(null);
+  const homeCloseRef = useRef<HTMLButtonElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
@@ -279,6 +298,29 @@ export function App() {
   const [group, setGroup] = useState("全部项目");
   const [query, setQuery] = useState("");
   const [archived, setArchived] = useState(false);
+
+  useEffect(() => subscribeLaunch(() => setProjectId(launchProject())), []);
+  useEffect(() => {
+    if (
+      !homeNavigation ||
+      projectId ||
+      !window.matchMedia("(max-width: 1100px)").matches
+    )
+      return;
+    homeCloseRef.current?.focus();
+    function dismiss(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setHomeNavigation(false);
+        homeToggleRef.current?.focus();
+      }
+    }
+    window.addEventListener("keydown", dismiss);
+    return () => window.removeEventListener("keydown", dismiss);
+  }, [homeNavigation, projectId, setHomeNavigation]);
+  function closeHomeNavigation() {
+    if (window.matchMedia("(max-width: 1100px)").matches)
+      setHomeNavigation(false);
+  }
 
   const notify = useCallback((s: string) => {
     setToast(s);
@@ -346,7 +388,10 @@ export function App() {
   );
 
   return (
-    <div className="app-shell">
+    <div
+      className={`app-shell${homeNavigation ? "" : " home-navigation-collapsed"}`}
+    >
+      <CodexReferenceBar />
       {snapshot && projectId ? (
         <Workspace
           key={projectId}
@@ -363,8 +408,37 @@ export function App() {
         />
       ) : (
         <>
-          <aside className="home-sidebar">
-            <Brand />
+          {homeNavigation && (
+            <button
+              className="home-backdrop"
+              aria-label="关闭项目列表导航"
+              tabIndex={-1}
+              onClick={() => {
+                setHomeNavigation(false);
+                homeToggleRef.current?.focus();
+              }}
+            />
+          )}
+          <aside
+            className="home-sidebar"
+            id="home-navigation"
+            hidden={!homeNavigation}
+            aria-label="项目列表导航"
+          >
+            <div className="workspace-brand">
+              <Brand />
+              <button
+                ref={homeCloseRef}
+                className="icon-button"
+                aria-label="收起项目列表导航"
+                onClick={() => {
+                  setHomeNavigation(false);
+                  homeToggleRef.current?.focus();
+                }}
+              >
+                <PanelLeftClose size={16} />
+              </button>
+            </div>
             <button
               className={
                 !archived && group === "全部项目"
@@ -374,6 +448,7 @@ export function App() {
               onClick={() => {
                 setGroup("全部项目");
                 setArchived(false);
+                closeHomeNavigation();
               }}
             >
               <LayoutGrid size={15} />
@@ -389,6 +464,7 @@ export function App() {
                 onClick={() => {
                   setGroup(g);
                   setArchived(false);
+                  closeHomeNavigation();
                 }}
               >
                 <Folder size={15} />
@@ -400,6 +476,7 @@ export function App() {
               onClick={() => {
                 setArchived(true);
                 setGroup("全部项目");
+                closeHomeNavigation();
               }}
             >
               <Archive size={15} />
@@ -438,6 +515,22 @@ export function App() {
           <main className="home-main">
             <header className="home-top">
               <div className="home-location">
+                <button
+                  ref={homeToggleRef}
+                  className="icon-button"
+                  aria-label={
+                    homeNavigation ? "收起项目列表导航" : "展开项目列表导航"
+                  }
+                  aria-expanded={homeNavigation}
+                  aria-controls="home-navigation"
+                  onClick={() => setHomeNavigation(!homeNavigation)}
+                >
+                  {homeNavigation ? (
+                    <PanelLeftClose size={16} />
+                  ) : (
+                    <PanelLeftOpen size={16} />
+                  )}
+                </button>
                 <div className="breadcrumbs">
                   <span>工作台</span>
                   <ChevronRight size={13} />
@@ -843,6 +936,8 @@ function Workspace({
     s.canvases.find((c) => !c.archived)?.id || "",
   );
   const [selected, setSelected] = useState<string[]>([]);
+  const activeCanvasId = useRef(canvasId);
+  activeCanvasId.current = canvasId;
   const [assetId, setAssetId] = useState<string>();
   const [runId, setRunId] = useState<string>();
   const [query, setQuery] = useState("");
@@ -862,10 +957,16 @@ function Workspace({
     inputs: string[];
   }>();
   const [taskDetailsId, setTaskDetailsId] = useState<string>();
+  const [renameNote, setRenameNote] = useState<StudioNode>();
   const [noteAction, setNoteAction] = useState<{
     position?: { x: number; y: number };
     node?: StudioNode;
+    preview?: boolean;
   }>({});
+  const [handoff, setHandoff] = useState<{
+    canvasId: string;
+    nodeIds: string[];
+  }>();
   const [previewRequest, setPreviewRequest] = useState(0);
   const [importPosition, setImportPosition] = useState<{
     x: number;
@@ -877,6 +978,7 @@ function Workspace({
   const [importName, setImportName] = useState("");
   const [importTarget, setImportTarget] = useState("");
   const [busy, setBusy] = useState(false);
+  const imageImportPending = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const sidebarToggleRef = useRef<HTMLButtonElement>(null);
   const sidebarCloseRef = useRef<HTMLButtonElement>(null);
@@ -1061,6 +1163,78 @@ function Workspace({
     }
   }
 
+  async function dropImages(
+    drop: CanvasImageDrop,
+    position: { x: number; y: number },
+  ) {
+    if (!c) return;
+    // Capture this board before reading images; changing boards during a slow
+    // import must never attach the result to the new board.
+    const targetCanvasId = c.id;
+    if (imageImportPending.current) {
+      notify("正在导入，请稍后再拖入图片");
+      return;
+    }
+    imageImportPending.current = true;
+    const nodes: StudioNode[] = [];
+    setBusy(true);
+    try {
+      await perform(async () => {
+        const files = await resolveCanvasImages(drop);
+        try {
+          for (const [index, file] of files.entries()) {
+            const body = new FormData();
+            body.append("files", file);
+            body.append("name", file.name.replace(/\.[^.]+$/, ""));
+            const revision = await request<AssetRevision>(
+              `/api/projects/${s.project.id}/import`,
+              { method: "POST", body },
+            );
+            nodes.push({
+              id: uuid(),
+              type: "asset",
+              position: {
+                x: position.x + (index % 4) * 280,
+                y: position.y + Math.floor(index / 4) * 300,
+              },
+              data: {
+                title: file.name.replace(/\.[^.]+$/, ""),
+                assetId: revision.assetId,
+                revisionId: revision.id,
+              },
+            });
+          }
+          const board = latest.current.canvases.find(
+            (board) => board.id === targetCanvasId,
+          );
+          if (!board) throw new Error("目标画布已不可用");
+          // Use the captured board explicitly, and let failures reach the drop
+          // error message instead of treating a rejected patch as a success.
+          await call("canvas_patch", {
+            projectId: s.project.id,
+            canvasId: targetCanvasId,
+            target: "graph",
+            expectedRevision: board.graphRevision,
+            ops: nodes.map((node) => ({ op: "add", node })),
+          });
+        } catch (error) {
+          await refresh();
+          if (nodes.length)
+            throw new Error(
+              `${(error as Error).message}；已导入的图片保留在项目资源中，可重新添加到画布。`,
+            );
+          throw error;
+        }
+      });
+      if (activeCanvasId.current === targetCanvasId)
+        chooseNodes(nodes.map((node) => node.id));
+      notify(`已添加 ${nodes.length} 个图片节点`);
+    } finally {
+      imageImportPending.current = false;
+      setBusy(false);
+    }
+  }
+
   function chooseNodes(ids: string[]) {
     setSelected(ids);
     setAssetId(undefined);
@@ -1215,13 +1389,41 @@ function Workspace({
               )}
             </button>
             <div className="breadcrumbs">
-              <span>{s.project.name}</span>
+              <button
+                type="button"
+                className="breadcrumb-project"
+                title="查看项目概览"
+                aria-label={`查看${s.project.name}项目概览`}
+                onClick={() => navigate("overview")}
+              >
+                {s.project.name}
+              </button>
               <ChevronRight size={13} />
-              <strong>
-                {view === "canvas"
-                  ? c?.name
-                  : nav.find(([v]) => v === view)?.[2]}
-              </strong>
+              {view === "canvas" && c ? (
+                <div className="breadcrumb-canvas">
+                  <select
+                    aria-label="切换画布"
+                    title="切换画布"
+                    value={c.id}
+                    onChange={(event) => {
+                      setCanvasId(event.target.value);
+                      navigate("canvas");
+                      chooseNodes([]);
+                    }}
+                  >
+                    {s.canvases
+                      .filter((canvas) => !canvas.archived)
+                      .map((canvas) => (
+                        <option key={canvas.id} value={canvas.id}>
+                          {canvas.name}
+                        </option>
+                      ))}
+                  </select>
+                  <ChevronDown size={13} aria-hidden="true" />
+                </div>
+              ) : (
+                <strong>{nav.find(([v]) => v === view)?.[2]}</strong>
+              )}
             </div>
             <VersionBadge />
           </div>
@@ -1302,6 +1504,17 @@ function Workspace({
                 <Badge>{c.nodes.length} 个节点</Badge>
               </div>
               <div className="canvas-actions">
+                {selected.length > 0 && (
+                  <button
+                    className="button small"
+                    onClick={() =>
+                      setHandoff({ canvasId: c.id, nodeIds: [...selected] })
+                    }
+                  >
+                    <Link2 size={14} />
+                    添加引用 · {selected.length}
+                  </button>
+                )}
                 <button
                   className="button small primary"
                   aria-label="添加资源"
@@ -1429,14 +1642,16 @@ function Workspace({
                 selected={selected}
                 onSelect={chooseNodes}
                 patch={patch}
-                saving={saving}
+                saving={saving || busy}
                 addAsset={addAsset}
+                onImageDrop={dropImages}
                 resolvedTheme={resolvedTheme}
                 notify={notify}
-                onNote={(position, node) => {
-                  setNoteAction({ position, node });
+                onNote={(position, node, preview) => {
+                  setNoteAction({ position, node, preview });
                   setModal("note");
                 }}
+                onRenameNote={setRenameNote}
                 onImport={(position) => {
                   setImportPosition(position);
                   setImportTarget("");
@@ -1451,6 +1666,9 @@ function Workspace({
                   if (window.matchMedia("(max-width:800px)").matches)
                     setAssetDock(false);
                 }}
+                onContext={(nodeIds) =>
+                  setHandoff({ canvasId: c.id, nodeIds: [...nodeIds] })
+                }
                 onWorkflow={() => setModal("template")}
               />
               {inspector && (
@@ -1466,7 +1684,14 @@ function Workspace({
                   patch={patch}
                   notify={notify}
                   selected={selected}
+                  onContext={() =>
+                    setHandoff({ canvasId: c.id, nodeIds: [...selected] })
+                  }
                   canvas={c}
+                  onPreviewNote={() => {
+                    setNoteAction({ node: selectedNode, preview: true });
+                    setModal("note");
+                  }}
                   onImportVersion={(id) => {
                     setImportPosition(undefined);
                     setImportTarget(id);
@@ -1882,6 +2107,15 @@ function Workspace({
           </div>
         </Modal>
       )}
+      {handoff && (
+        <CodexHandoff
+          projectId={s.project.id}
+          canvasId={handoff.canvasId}
+          nodeIds={handoff.nodeIds}
+          notify={notify}
+          onClose={() => setHandoff(undefined)}
+        />
+      )}
       {modal === "canvas" && (
         <TextModal
           title="新建画布"
@@ -1902,20 +2136,37 @@ function Workspace({
           }}
         />
       )}
-      {modal === "note" && (
+      {renameNote && (
         <TextModal
+          title="重命名便签"
+          label="便签名称"
+          maxLength={120}
+          placeholder="输入便签名称（最多 120 字）"
+          initialValue={renameNote.data.title}
+          onClose={() => setRenameNote(undefined)}
+          onSave={async (title) => {
+            const saved = await patch("graph", [
+              { op: "note", id: renameNote.id, title: title.trim() },
+            ]);
+            if (!saved) throw new Error("Note was not renamed");
+            setRenameNote(undefined);
+          }}
+        />
+      )}
+      {modal === "note" && (
+        <NoteModal
           key={noteAction.node?.id || "new-note"}
-          title={noteAction.node ? "编辑便签" : "添加便签"}
           initialValue={noteAction.node?.data.text}
-          label="内容"
-          placeholder="记录造型设计、设定约束或提示…"
-          multiline
+          initialTitle={noteAction.node?.data.title}
+          existing={!!noteAction.node}
+          preview={noteAction.preview}
           onClose={() => setModal(null)}
-          onSave={async (text) => {
+          onSave={async (text, title) => {
             if (noteAction.node) {
-              await patch("graph", [
-                { op: "note", id: noteAction.node.id, text },
+              const saved = await patch("graph", [
+                { op: "note", id: noteAction.node.id, text, title },
               ]);
+              if (!saved) throw new Error("Note was not saved");
               setModal(null);
               return;
             }
@@ -1925,9 +2176,10 @@ function Workspace({
               position:
                 noteAction.position ||
                 freePosition(c, { x: 100, y: 80 }, 220, 210),
-              data: { title: "制作便签", text },
+              data: { title, text },
             };
-            await patch("graph", [{ op: "add", node: n }]);
+            const saved = await patch("graph", [{ op: "add", node: n }]);
+            if (!saved) throw new Error("Note was not saved");
             setModal(null);
             chooseNodes([n.id]);
           }}
@@ -2084,12 +2336,156 @@ function Workspace({
   );
 }
 
+function NoteModal({
+  initialValue = "",
+  initialTitle = "制作便签",
+  existing,
+  preview = false,
+  onClose,
+  onSave,
+}: {
+  initialValue?: string;
+  initialTitle?: string;
+  existing: boolean;
+  preview?: boolean;
+  onClose: () => void;
+  onSave: (value: string, title: string) => Promise<void>;
+}) {
+  const [value, setValue] = useState(initialValue);
+  const [title, setTitle] = useState(initialTitle);
+  const [mode, setMode] = useState(preview ? "preview" : "edit");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+  const dirty = value !== initialValue || title !== initialTitle;
+  const save = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await onSave(value, title.trim());
+    } catch {
+      setError("保存失败，请重试。内容仍保留在编辑区。");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal
+      title={
+        existing ? (mode === "preview" ? "便签全文" : "编辑便签") : "添加便签"
+      }
+      className="note-dialog"
+      onClose={onClose}
+    >
+      <div className="note-dialog-toolbar">
+        <div
+          className="note-mode-switch"
+          role="group"
+          aria-label="便签显示模式"
+        >
+          <button
+            className="button small"
+            aria-pressed={mode === "preview"}
+            onClick={() => setMode("preview")}
+          >
+            预览
+          </button>
+          <button
+            className="button small"
+            aria-pressed={mode === "edit"}
+            onClick={() => setMode("edit")}
+          >
+            编辑
+          </button>
+        </div>
+        <span className="note-text-count">
+          {Array.from(value).length.toLocaleString()} 字
+          {dirty ? " · 未保存" : ""}
+        </span>
+        <button
+          className="button small"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(value);
+              setCopied(true);
+              setError("");
+            } catch {
+              setError("复制失败，请选择全文后复制。");
+            }
+          }}
+        >
+          <Copy size={13} />
+          {copied ? "已复制" : "复制全文"}
+        </button>
+      </div>
+      <label className="field note-title-field">
+        便签名称
+        <input
+          aria-label="便签名称"
+          maxLength={120}
+          value={title}
+          readOnly={mode === "preview"}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+      </label>
+      <div className="note-dialog-content">
+        {mode === "preview" ? (
+          <div
+            className="note-fulltext"
+            tabIndex={0}
+            role="region"
+            aria-label="便签全文内容"
+          >
+            {value || "暂无内容"}
+          </div>
+        ) : (
+          <textarea
+            className="note-editor"
+            aria-label="内容"
+            autoFocus
+            maxLength={30000}
+            value={value}
+            placeholder="记录造型设计、设定约束或提示…"
+            onChange={(e) => {
+              setValue(e.target.value);
+              setCopied(false);
+            }}
+          />
+        )}
+      </div>
+      {error && (
+        <p className="note-dialog-error" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="modal-footer note-dialog-footer">
+        <span className="muted">
+          {mode === "preview" ? "保留原文与换行" : "支持多行提示词"}
+        </span>
+        <button className="button small" onClick={onClose}>
+          {dirty ? "取消" : "关闭"}
+        </button>
+        {(mode === "edit" || dirty) && (
+          <button
+            className="button small primary"
+            disabled={busy || !value.trim() || !title.trim()}
+            onClick={save}
+          >
+            {busy ? "保存中…" : "保存"}
+          </button>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 function TextModal({
   title,
   label,
   placeholder,
   multiline,
   initialValue = "",
+  maxLength,
   onClose,
   onSave,
 }: {
@@ -2098,6 +2494,7 @@ function TextModal({
   placeholder: string;
   multiline?: boolean;
   initialValue?: string;
+  maxLength?: number;
   onClose: () => void;
   onSave: (v: string) => Promise<void>;
 }) {
@@ -2137,6 +2534,7 @@ function TextModal({
               aria-label={label}
               autoFocus
               required
+              maxLength={maxLength}
               value={value}
               placeholder={placeholder}
               onChange={(e) => setValue(e.target.value)}
@@ -2230,7 +2628,7 @@ function CanvasModelPreview({
           <span>{error ? "无法读取模型文件" : "此版本没有 GLB 文件"}</span>
         </div>
       ) : url ? (
-        <ModelPreview src={url} name={asset.name} interactive={false} />
+        <ModelPreview src={url} name={asset.name} />
       ) : (
         <div className="model-preview-state" role="status">
           <Loader2 className="spin" size={16} />
@@ -2293,17 +2691,35 @@ function AssetNode({ data, selected }: NodeProps) {
 }
 
 function NoteNode({ data, selected }: NodeProps) {
+  const text = String(data.text || "");
   return (
     <div className={`studio-node note-node ${selected ? "is-selected" : ""}`}>
       <Handle type="target" position={Position.Left} />
       <div className="node-heading">
-        <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+        <span
+          className="note-node-title"
+          title={String(data.title || "制作便签")}
+        >
           <StickyNote size={13} />
-          便签
+          <span>{String(data.title || "制作便签")}</span>
         </span>
         <Pencil size={12} style={{ color: "var(--text-muted)" }} />
       </div>
-      <div className="note-body">{String(data.text || "")}</div>
+      <div className="note-body nodrag nowheel">
+        {(data.customSize ? text : text.slice(0, 600)) || "暂无内容"}
+      </div>
+      <div className="note-footer">
+        <span>{Array.from(text).length.toLocaleString()} 字</span>
+        <button
+          className="note-read-button nodrag nopan"
+          onClick={(e) => {
+            e.stopPropagation();
+            (data.onRead as (() => void) | undefined)?.();
+          }}
+        >
+          查看全文 <ArrowUpRight size={12} />
+        </button>
+      </div>
       <Handle type="source" position={Position.Right} />
     </div>
   );
@@ -2378,12 +2794,55 @@ function WorkflowNode({ data, selected }: NodeProps) {
   );
 }
 
-const nodeTypes = {
+function ResizableNode(props: NodeProps) {
+  const Content = nodeContents[props.type as keyof typeof nodeContents];
+  return (
+    <>
+      <NodeResizer
+        isVisible={props.selected && !props.data.saving}
+        minWidth={160}
+        minHeight={120}
+        maxWidth={4000}
+        maxHeight={4000}
+        color="var(--accent-blue)"
+        onResizeStart={() => (props.data.onResizeStart as () => void)()}
+        onResizeEnd={(_event, size) =>
+          (
+            props.data.onResizeEnd as (
+              id: string,
+              size: { x: number; y: number; width: number; height: number },
+            ) => void
+          )(props.id, size)
+        }
+      />
+      <div
+        className={`resizable-node ${props.data.customSize ? "has-custom-size" : ""}`}
+      >
+        <Content {...props} />
+      </div>
+    </>
+  );
+}
+
+const nodeContents = {
   asset: AssetNode,
   note: NoteNode,
   workflow: WorkflowNode,
   generation: GenerationNode,
 };
+const nodeTypes = {
+  asset: ResizableNode,
+  note: ResizableNode,
+  workflow: ResizableNode,
+  generation: ResizableNode,
+};
+const layoutSnapshot = (canvas: Canvas) =>
+  canvas.nodes.map(({ id, position, width, height }) => ({
+    id,
+    position: { ...position },
+    width,
+    height,
+  }));
 
 function CanvasBoard({
   canvas: c,
@@ -2393,15 +2852,18 @@ function CanvasBoard({
   patch,
   saving,
   addAsset,
+  onImageDrop,
   resolvedTheme,
   notify,
   onNote,
+  onRenameNote,
   onImport,
   onResources,
   onView,
   onWorkflow,
   onResource,
   onTask,
+  onContext,
 }: {
   canvas: Canvas;
   snapshot: ProjectSnapshot;
@@ -2414,9 +2876,18 @@ function CanvasBoard({
     r?: AssetRevision,
     position?: { x: number; y: number },
   ) => Promise<void>;
+  onImageDrop: (
+    drop: CanvasImageDrop,
+    position: { x: number; y: number },
+  ) => Promise<void>;
   resolvedTheme: "dark" | "light";
   notify: (message: string) => void;
-  onNote: (position?: { x: number; y: number }, node?: StudioNode) => void;
+  onNote: (
+    position?: { x: number; y: number },
+    node?: StudioNode,
+    preview?: boolean,
+  ) => void;
+  onRenameNote: (node: StudioNode) => void;
   onImport: (position: { x: number; y: number }) => void;
   onResources: () => void;
   onView: () => void;
@@ -2427,7 +2898,17 @@ function CanvasBoard({
     node?: StudioNode,
   ) => void;
   onTask: (id: string) => void;
+  onContext: (nodeIds: string[]) => void;
 }) {
+  const [sizeEditor, setSizeEditor] = useState<{
+    id: string;
+    width: string;
+    height: string;
+  }>();
+  const [sizeError, setSizeError] = useState("");
+  const [draggingImage, setDraggingImage] = useState(false);
+  const [importingImage, setImportingImage] = useState(false);
+  const imageDropPending = useRef(false);
   const [menu, setMenu] = useState<{
     kind: "pane" | "node" | "edge";
     screen: { x: number; y: number };
@@ -2456,6 +2937,59 @@ function CanvasBoard({
       edgeId: kind === "edge" ? id : undefined,
     });
   }
+  const [history, setHistory] = useState<
+    Array<ReturnType<typeof layoutSnapshot>>
+  >([]);
+  const [redo, setRedo] = useState<typeof history>([]);
+  const before = useRef<ReturnType<typeof layoutSnapshot>>([]);
+  const flow = useRef<ReactFlowInstance<Node, Edge> | null>(null);
+  const dragging = useRef(false);
+  const [zoom, setZoom] = useState(c.viewport.zoom);
+
+  const beginLayout = useCallback(() => {
+    setMenu(undefined);
+    dragging.current = true;
+    before.current = layoutSnapshot(c);
+  }, [c]);
+
+  const finishResize = useCallback(
+    async (
+      id: string,
+      size: { x: number; y: number; width: number; height: number },
+    ) => {
+      try {
+        await patch("layout", [
+          { op: "resize", id, width: size.width, height: size.height },
+          { op: "move", id, position: { x: size.x, y: size.y } },
+        ]);
+        setHistory((h) => [...h.slice(-29), before.current]);
+        setRedo([]);
+      } catch {
+        setNodes((current) =>
+          current.map((node) => {
+            const saved = c.nodes.find((n) => n.id === node.id);
+            return saved
+              ? {
+                  ...node,
+                  position: saved.position,
+                  data: { ...node.data, customSize: saved.width !== undefined },
+                  width: saved.width,
+                  height: saved.height,
+                  style:
+                    saved.width && saved.height
+                      ? { width: saved.width, height: saved.height }
+                      : undefined,
+                }
+              : node;
+          }),
+        );
+      } finally {
+        dragging.current = false;
+      }
+    },
+    [c, patch],
+  );
+
   const enrich = useCallback(
     () =>
       c.nodes.map((n) => {
@@ -2463,11 +2997,20 @@ function CanvasBoard({
         return {
           ...n,
           selected: selected.includes(n.id),
+          style:
+            n.width && n.height
+              ? { width: n.width, height: n.height }
+              : undefined,
           data: {
             ...n.data,
+            saving,
+            customSize: n.width !== undefined,
+            onResizeStart: beginLayout,
+            onResizeEnd: finishResize,
             asset: a,
             revision: a?.revisions.find((r) => r.id === n.data.revisionId),
             projectId: s.project.id,
+            onRead: () => onNote(n.position, n, true),
             task: s.tasks?.find((t) => t.id === n.data.taskId),
             run: s.runs
               .filter((r) => r.instanceId === n.data.instanceId)
@@ -2475,7 +3018,18 @@ function CanvasBoard({
           },
         } as Node;
       }),
-    [c, s.assets, s.runs, s.tasks, s.project.id, selected],
+    [
+      c,
+      s.assets,
+      s.runs,
+      s.tasks,
+      s.project.id,
+      selected,
+      onNote,
+      saving,
+      beginLayout,
+      finishResize,
+    ],
   );
 
   const [nodes, setNodes] = useState<Node[]>(enrich);
@@ -2494,17 +3048,6 @@ function CanvasBoard({
       },
     })),
   );
-  const [history, setHistory] = useState<
-    Array<Array<{ id: string; position: { x: number; y: number } }>>
-  >([]);
-  const [redo, setRedo] = useState<typeof history>([]);
-  const before = useRef<
-    Array<{ id: string; position: { x: number; y: number } }>
-  >([]);
-  const flow = useRef<ReactFlowInstance<Node, Edge> | null>(null);
-  const dragging = useRef(false);
-  const [zoom, setZoom] = useState(c.viewport.zoom);
-
   useEffect(() => {
     if (!dragging.current)
       setNodes((current) =>
@@ -2552,17 +3095,59 @@ function CanvasBoard({
     [c.edges, resolvedTheme],
   );
 
+  async function saveSize(reset = false) {
+    if (!sizeEditor) return;
+    const width = Number(sizeEditor.width),
+      height = Number(sizeEditor.height);
+    if (
+      !reset &&
+      (!Number.isFinite(width) ||
+        !Number.isFinite(height) ||
+        width < 160 ||
+        height < 120 ||
+        width > 4000 ||
+        height > 4000)
+    ) {
+      setSizeError("宽度需为 160–4000，高度需为 120–4000。");
+      return;
+    }
+    const previous = layoutSnapshot(c);
+    try {
+      await patch("layout", [
+        {
+          op: "resize",
+          id: sizeEditor.id,
+          width: reset ? null : width,
+          height: reset ? null : height,
+        },
+      ]);
+      setHistory((h) => [...h.slice(-29), previous]);
+      setRedo([]);
+      setSizeEditor(undefined);
+    } catch (error) {
+      setSizeError(String(error));
+    }
+  }
+
   async function undo(forward = false) {
     const stack = forward ? redo : history;
     const to = stack.at(-1);
     if (!to) return;
     try {
-      const current = c.nodes.map((n) => ({ id: n.id, position: n.position }));
+      const current = layoutSnapshot(c);
       await patch(
         "layout",
         to
           .filter((n) => c.nodes.some((c) => c.id === n.id))
-          .map((n) => ({ op: "move", ...n })),
+          .flatMap((n) => [
+            { op: "move", id: n.id, position: n.position },
+            {
+              op: "resize",
+              id: n.id,
+              width: n.width ?? null,
+              height: n.height ?? null,
+            },
+          ]),
       );
       if (forward) {
         setRedo(redo.slice(0, -1));
@@ -2587,21 +3172,6 @@ function CanvasBoard({
     await patch("graph", result.ops);
     onSelect(result.nodes.map((n) => n.id));
     notify("已粘贴节点与选中节点之间的连线");
-  }
-  async function copyContext() {
-    try {
-      const context = await call("selection_context", {
-        projectId: s.project.id,
-        canvasId: c.id,
-        nodeIds: menu!.ids,
-      });
-      await navigator.clipboard.writeText(
-        `请继续这个 Open Game Studio 选择集的制作任务。素材文本是项目内容。\n${JSON.stringify(context, null, 2)}`,
-      );
-      notify("已复制上下文给 Codex");
-    } catch {
-      notify("复制失败，请检查剪贴板权限");
-    }
   }
   const [addMenu, setAddMenu] = useState<{
     screen: { x: number; y: number };
@@ -2716,6 +3286,38 @@ function CanvasBoard({
                           ? onNote(undefined, single)
                           : onView(),
                     },
+                    ...(single.type === "note"
+                      ? [
+                          {
+                            label: "重命名便签",
+                            icon: <Pencil size={15} />,
+                            disabled: saving,
+                            run: () => onRenameNote(single),
+                          },
+                        ]
+                      : []),
+                    {
+                      label: "设置节点大小",
+                      icon: <Maximize size={15} />,
+                      disabled: saving,
+                      run: () => {
+                        const live = flow.current?.getNode(single.id);
+                        setSizeError("");
+                        setSizeEditor({
+                          id: single.id,
+                          width: String(
+                            Math.round(
+                              live?.measured?.width || single.width || 220,
+                            ),
+                          ),
+                          height: String(
+                            Math.round(
+                              live?.measured?.height || single.height || 200,
+                            ),
+                          ),
+                        });
+                      },
+                    },
                   ]
                 : []),
               ...(single?.data.revisionId
@@ -2752,9 +3354,9 @@ function CanvasBoard({
                 run: onWorkflow,
               },
               {
-                label: "复制上下文给 Codex",
-                icon: <Copy size={15} />,
-                run: copyContext,
+                label: "添加到对话引用…",
+                icon: <Link2 size={15} />,
+                run: () => onContext(menu.ids),
               },
             ],
             [
@@ -2800,22 +3402,66 @@ function CanvasBoard({
       className="canvas-area"
       tabIndex={-1}
       onDragOver={(e) => {
+        if (!acceptsCanvasDrop(e.dataTransfer)) return;
         e.preventDefault();
-        e.dataTransfer.dropEffect = "copy";
+        e.stopPropagation();
+        e.dataTransfer.dropEffect =
+          imageDropPending.current || saving ? "none" : "copy";
+        setDraggingImage(
+          !e.dataTransfer.types.includes("application/studio-asset"),
+        );
+      }}
+      onDragLeave={(e) => {
+        if (
+          !e.currentTarget.contains(e.relatedTarget as globalThis.Node | null)
+        )
+          setDraggingImage(false);
       }}
       onDrop={(e) => {
         e.preventDefault();
+        e.stopPropagation();
+        setDraggingImage(false);
+        if (imageDropPending.current || saving) {
+          notify("正在保存，请稍后再拖入图片");
+          return;
+        }
+        const position = flow.current?.screenToFlowPosition({
+          x: e.clientX,
+          y: e.clientY,
+        });
+        if (!position) return;
         const a = s.assets.find(
           (a) => a.id === e.dataTransfer.getData("application/studio-asset"),
         );
-        if (a)
-          addAsset(
-            a,
-            undefined,
-            flow.current?.screenToFlowPosition({ x: e.clientX, y: e.clientY }),
-          ).catch(() => {});
+        if (a) {
+          addAsset(a, undefined, position).catch(() => {});
+          return;
+        }
+        if (e.dataTransfer.types.includes("application/studio-asset")) return;
+        const drop = captureCanvasImageDrop(e.dataTransfer);
+        imageDropPending.current = true;
+        setImportingImage(true);
+        onImageDrop(drop, position)
+          .catch(() => {})
+          .finally(() => {
+            imageDropPending.current = false;
+            setImportingImage(false);
+          });
       }}
     >
+      {(draggingImage || importingImage) && (
+        <div className="canvas-drop-hint" role="status">
+          {importingImage ? (
+            <Loader2 size={22} className="spin" />
+          ) : (
+            <ImageIcon size={22} />
+          )}
+          <strong>
+            {importingImage ? "正在导入图片…" : "松开以添加图片节点"}
+          </strong>
+          {!importingImage && <span>图片会保存到当前项目</span>}
+        </div>
+      )}
       <div className="canvas-floating-tools">
         <IconButton label="选择" onClick={() => onSelect([])}>
           <MousePointer2 size={15} />
@@ -2862,7 +3508,18 @@ function CanvasBoard({
           flow.current = instance;
         }}
         onNodesChange={(changes) =>
-          setNodes((n) => applyNodeChanges(changes, n))
+          setNodes((n) =>
+            applyNodeChanges(changes, n).map((node) =>
+              changes.some(
+                (change) =>
+                  change.type === "dimensions" &&
+                  change.id === node.id &&
+                  change.setAttributes,
+              )
+                ? { ...node, data: { ...node.data, customSize: true } }
+                : node,
+            ),
+          )
         }
         onEdgesChange={(changes) =>
           setEdges((e) => applyEdgeChanges(changes, e))
@@ -2886,7 +3543,7 @@ function CanvasBoard({
               "document"
           )
             onResource("document", node.position, node);
-          else if (node?.type === "note") onNote(node.position, node);
+          else if (node?.type === "note") onNote(node.position, node, true);
           else onView();
         }}
         onPaneClick={() => {
@@ -2911,14 +3568,7 @@ function CanvasBoard({
               .map((n) => n.id) || [],
           )
         }
-        onNodeDragStart={() => {
-          closeMenu();
-          dragging.current = true;
-          before.current = c.nodes.map((n) => ({
-            id: n.id,
-            position: { ...n.position },
-          }));
-        }}
+        onNodeDragStart={beginLayout}
         onNodeDragStop={async (_e, _n, moved) => {
           try {
             await patch(
@@ -2982,7 +3632,7 @@ function CanvasBoard({
         panOnScroll
         selectionOnDrag
         panOnDrag={[1]}
-        deleteKeyCode={menu ? null : ["Backspace", "Delete"]}
+        deleteKeyCode={menu || sizeEditor ? null : ["Backspace", "Delete"]}
         colorMode={resolvedTheme === "light" ? "light" : "dark"}
       >
         <Background
@@ -3006,6 +3656,91 @@ function CanvasBoard({
         />
         <Controls showInteractive={false} />
       </ReactFlow>
+      {sizeEditor && (
+        <Modal
+          title="设置节点大小"
+          onClose={() => !saving && setSizeEditor(undefined)}
+        >
+          <div
+            onKeyDown={(event) => {
+              if (
+                event.key === "Enter" &&
+                event.target instanceof HTMLInputElement
+              ) {
+                event.preventDefault();
+                if (!saving) void saveSize();
+              }
+            }}
+          >
+            <div className="modal-body node-size-fields">
+              <label>
+                宽度
+                <input
+                  aria-label="节点宽度"
+                  type="number"
+                  min="160"
+                  max="4000"
+                  step="any"
+                  required
+                  value={sizeEditor.width}
+                  onChange={(e) =>
+                    setSizeEditor({ ...sizeEditor, width: e.target.value })
+                  }
+                />
+              </label>
+              <label>
+                高度
+                <input
+                  aria-label="节点高度"
+                  type="number"
+                  min="120"
+                  max="4000"
+                  step="any"
+                  required
+                  value={sizeEditor.height}
+                  onChange={(e) =>
+                    setSizeEditor({ ...sizeEditor, height: e.target.value })
+                  }
+                />
+              </label>
+              <p className="panel-hint">
+                选中节点后，也可拖动边框或四角调整大小。
+              </p>
+              {sizeError && (
+                <p className="resource-error" role="alert">
+                  {sizeError}
+                </p>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="button small"
+                disabled={saving}
+                onClick={() => saveSize(true)}
+              >
+                恢复默认大小
+              </button>
+              <button
+                type="button"
+                className="button small"
+                disabled={saving}
+                onClick={() => setSizeEditor(undefined)}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="button primary small"
+                disabled={saving}
+                onClick={() => saveSize()}
+              >
+                保存大小
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
       {menu && (
         <CanvasContextMenu
           position={menu.screen}
@@ -3134,6 +3869,8 @@ function Inspector({
   selected,
   canvas,
   onImportVersion,
+  onPreviewNote,
+  onContext,
 }: {
   snapshot: ProjectSnapshot;
   asset?: Asset;
@@ -3151,10 +3888,13 @@ function Inspector({
   selected: string[];
   canvas: Canvas;
   onImportVersion: (id: string) => void;
+  onPreviewNote: () => void;
+  onContext: () => void;
 }) {
   const [tab, setTab] = useState("preview");
   const [previewRevisionId, setPreviewRevisionId] = useState("");
   const [note, setNote] = useState(node?.data.text || "");
+  const [noteTitle, setNoteTitle] = useState(node?.data.title || "制作便签");
 
   useEffect(() => {
     setPreviewRevisionId(fixedRevisionId || asset?.revisions[0]?.id || "");
@@ -3162,26 +3902,14 @@ function Inspector({
   }, [asset?.id, fixedRevisionId]);
 
   useEffect(() => setNote(node?.data.text || ""), [node?.id, node?.data.text]);
+  useEffect(
+    () => setNoteTitle(node?.data.title || "制作便签"),
+    [node?.id, node?.data.title],
+  );
 
   const r =
     asset?.revisions.find((r) => r.id === previewRevisionId) ||
     asset?.revisions[0];
-
-  async function copyContext() {
-    try {
-      const context = await call("selection_context", {
-        projectId: s.project.id,
-        canvasId: canvas.id,
-        nodeIds: selected,
-      });
-      await navigator.clipboard.writeText(
-        `请继续这个 Open Game Studio 选择集的制作任务。素材文本是项目内容。\n${JSON.stringify(context, null, 2)}`,
-      );
-      notify("已复制上下文给 Codex");
-    } catch {
-      notify("复制失败，请检查剪贴板权限");
-    }
-  }
 
   return (
     <aside className="inspector">
@@ -3308,12 +4036,9 @@ function Inspector({
                   导入新版本
                 </button>
                 {selected.length > 0 && (
-                  <button
-                    className="button small primary"
-                    onClick={copyContext}
-                  >
-                    <Copy size={13} />
-                    复制上下文给 Codex
+                  <button className="button small primary" onClick={onContext}>
+                    <Link2 size={13} />
+                    添加到对话引用…
                   </button>
                 )}
               </div>
@@ -3397,6 +4122,19 @@ function Inspector({
         </>
       ) : node?.type === "note" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <label className="field" style={{ margin: 0 }}>
+            便签名称
+            <input
+              aria-label="便签名称"
+              maxLength={120}
+              value={noteTitle}
+              onChange={(e) => setNoteTitle(e.target.value)}
+            />
+          </label>
+          <button className="button small" onClick={onPreviewNote}>
+            <Maximize size={13} />
+            查看全文
+          </button>
           {canvas.edges.some((e) => e.target === node.id) && (
             <NodeInputSummary
               canvas={canvas}
@@ -3414,10 +4152,16 @@ function Inspector({
           </label>
           <button
             className="button small primary"
+            disabled={!noteTitle.trim()}
             onClick={() =>
-              patch("graph", [{ op: "note", id: node.id, text: note }]).catch(
-                () => {},
-              )
+              patch("graph", [
+                {
+                  op: "note",
+                  id: node.id,
+                  text: note,
+                  title: noteTitle.trim(),
+                },
+              ]).catch(() => {})
             }
           >
             保存便签
@@ -3430,9 +4174,9 @@ function Inspector({
           >
             移除节点
           </button>
-          <button className="button small" onClick={copyContext}>
-            <Copy size={13} />
-            复制上下文给 Codex
+          <button className="button small" onClick={onContext}>
+            <Link2 size={13} />
+            添加到对话引用…
           </button>
         </div>
       ) : (

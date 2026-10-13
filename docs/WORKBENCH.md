@@ -18,15 +18,17 @@ Canvas references, reviews and exports select explicit versions. Importing a new
 
 Each project can have multiple canvases with their own saved viewport. Drag nodes, box-select, zoom or pan. Layout undo/redo covers positions; full graph undo/redo is unfinished.
 
+Drag PNG, JPG, WebP or GIF images from Codex conversation thumbnails or local files onto the canvas to import them and create pinned image nodes at the drop position. Up to 12 images (200 MB total) can be dropped at once; each becomes a separate resource and node. Image HTML/data URLs are also accepted when the host supplies them. URL-only drags that cannot be read show an error; save the image and drag the file instead. The workbench copies image bytes into the project, so refreshing keeps the nodes and their previews.
+
 The toolbar's add-resource control, lower-left **+**, and blank-canvas context menu lead to the same resource menu. It supports new documents, existing document references, text notes, images, video, 3D models, 3D animations, audio, source files, uploads and the library. The library lets you choose a specific revision to reuse.
 
-| Context | Actions |
-| --- | --- |
-| Blank canvas | Add a note, import at the clicked position, open the resource dock, paste, undo/redo layout, select all and fit view |
-| Asset node | Inspect, download its pinned main file, copy context, duplicate selected nodes or remove the reference |
-| Note | Edit its text, copy or remove it |
-| Connection | Disconnect the input |
-| Production group | Inspect or expand its own run history |
+| Context          | Actions                                                                                                               |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Blank canvas     | Add a note, import at the clicked position, open the resource dock, paste, undo/redo layout, select all and fit view  |
+| Asset node       | Inspect, download its pinned main file, add conversation references, duplicate selected nodes or remove the reference |
+| Note             | Rename, edit its name and text, copy or remove it                                                                     |
+| Connection       | Disconnect the input                                                                                                  |
+| Production group | Inspect or expand its own run history                                                                                 |
 
 The node clipboard works across canvases in the same project and workbench session. It preserves pinned asset versions, relative positions and connections inside the selected set, using new node and edge IDs. Production groups are expanded as new groups rather than copied with executable history. Cross-project paste is unsupported.
 
@@ -62,3 +64,11 @@ Brief → Reference → Candidate → Appearance review
 Agent and manual stages can hand off imported files. Reviews accept an explicit version or request changes with saved feedback. Previewing a candidate does not accept it. Runs and decisions are persistent; local partial reruns preserve earlier results and the old run. Independent head/body branches are not implemented.
 
 Exports copy explicit revisions to a delivery directory with a manifest and file hashes. Exporting a workflow requires its current deformation review to accept the delivery inputs. File integrity and supported format structures are checked; editable Blend files, mesh budgets, rig deformation and Godot acceptance require separate real-tool validation. Engine validation remains `not_verified`.
+
+## Conversation references
+
+Select canvas nodes and use **添加引用** or the node menu’s **添加到对话引用…**. In a compatible Codex MCP App host, **添加引用** updates the model context for the next message without sending a message or starting a task. The workbench shows removable reference chips; removing or clearing them updates the host context. References keep pinned asset revisions, file paths, note snapshots and associated inputs. Documents are read from their pinned files as needed. Adding the same selection again refreshes its snapshot; different selections accumulate. References belong to the current open workbench view and are not stored as project data.
+
+Browser windows and hosts that do not advertise text model-context updates offer **复制引用** as a fallback. Copying alone does not attach anything to a conversation. The workbench’s chips are separate from Codex’s native composer; native composer chips depend on host support.
+
+节点支持自定义大小：选中任意资源、便签、制作分组或生成任务节点，拖动边框或四角；也可右键选择「设置节点大小」输入宽高，或恢复默认大小。宽度范围 160–4000，高度范围 120–4000，单位为画布像素。尺寸自动保存，重新打开画布、复制节点及复制画布保留尺寸，布局撤销/重做同时恢复大小和位置。

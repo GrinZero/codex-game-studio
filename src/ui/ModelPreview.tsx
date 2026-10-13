@@ -1,19 +1,25 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { createPortal } from "react-dom";
+import { AlertTriangle, Loader2, Maximize2, X } from "lucide-react";
 
 type ViewerElement = HTMLElement & {
   loaded?: boolean;
   availableAnimations?: string[];
+  cameraOrbit: string;
+  cameraTarget: string;
+  fieldOfView: string;
 };
 
 export function ModelPreview({
   src,
   name,
   interactive = true,
+  detailed = false,
 }: {
   src: string;
   name: string;
   interactive?: boolean;
+  detailed?: boolean;
 }) {
   // A different immutable asset version gets its own load and animation state.
   return (
@@ -22,6 +28,7 @@ export function ModelPreview({
       src={src}
       name={name}
       interactive={interactive}
+      detailed={detailed}
     />
   );
 }
@@ -30,11 +37,20 @@ function ModelPreviewContent({
   src,
   name,
   interactive,
+  detailed,
 }: {
   src: string;
   name: string;
   interactive: boolean;
+  detailed: boolean;
 }) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [rotating, setRotating] = useState(true);
+  const [playing, setPlaying] = useState(true);
+  useEffect(() => {
+    if (expanded) dialogRef.current?.showModal();
+  }, [expanded]);
   const viewerRef = useRef<ViewerElement>(null);
   const [ready, setReady] = useState(!!customElements.get("model-viewer"));
   const [loaded, setLoaded] = useState(false);
@@ -93,7 +109,10 @@ function ModelPreviewContent({
 
   return (
     <div
-      className={`model-preview ${interactive ? "is-interactive" : "is-passive"}`}
+      className={`model-preview nodrag nowheel nopan ${detailed ? "is-detailed" : ""} ${interactive ? "is-interactive" : "is-passive"}`}
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
+      onDoubleClick={(event) => event.stopPropagation()}
     >
       {ready && (
         <model-viewer
@@ -102,8 +121,8 @@ function ModelPreviewContent({
           alt={name}
           loading="eager"
           camera-controls={interactive || undefined}
-          auto-rotate
-          autoplay
+          auto-rotate={rotating || undefined}
+          autoplay={playing || undefined}
           animation-name={clip || undefined}
           interaction-prompt="none"
           shadow-intensity="1"
@@ -112,6 +131,80 @@ function ModelPreviewContent({
           tabIndex={interactive ? 0 : -1}
           aria-hidden={interactive ? undefined : true}
         />
+      )}
+      {!detailed && (
+        <button
+          className="model-preview-expand"
+          aria-label={`放大查看 ${name}`}
+          title="放大查看"
+          onClick={() => setExpanded(true)}
+        >
+          <Maximize2 size={16} />
+        </button>
+      )}
+      {expanded &&
+        createPortal(
+          <dialog
+            ref={dialogRef}
+            className="model-preview-dialog"
+            aria-label={`模型预览 ${name}`}
+            onCancel={() => setExpanded(false)}
+            onClose={() => setExpanded(false)}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (event.target === event.currentTarget) setExpanded(false);
+            }}
+          >
+            <header>
+              <strong>{name}</strong>
+              <button
+                aria-label="关闭模型预览"
+                onClick={() => setExpanded(false)}
+              >
+                <X size={20} />
+              </button>
+            </header>
+            <ModelPreview src={src} name={name} detailed />
+          </dialog>,
+          document.body,
+        )}
+      {detailed && (
+        <div className="model-preview-tools">
+          <button
+            aria-pressed={rotating}
+            onClick={() => setRotating(!rotating)}
+          >
+            自动旋转{rotating ? "：开" : "：关"}
+          </button>
+          <button
+            disabled={!clips.length}
+            aria-pressed={playing}
+            onClick={() => {
+              setPlaying(!playing);
+              const viewer = viewerRef.current as ViewerElement & {
+                play(): void;
+                pause(): void;
+              };
+              if (playing) viewer?.pause();
+              else viewer?.play();
+            }}
+          >
+            {playing ? "暂停动画" : "播放动画"}
+          </button>
+          <button
+            onClick={() => {
+              const viewer = viewerRef.current;
+              if (viewer) {
+                viewer.cameraOrbit = "0deg 75deg auto";
+                viewer.cameraTarget = "auto auto auto";
+                viewer.fieldOfView = "auto";
+              }
+            }}
+          >
+            重置视角
+          </button>
+        </div>
       )}
       {(error || !loaded) && (
         <div

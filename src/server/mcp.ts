@@ -17,11 +17,30 @@ import { StudioCore } from "./core.js";
 import { dispatch, tools } from "./operations.js";
 import { uiRequest, uiRequestSchema } from "./ui.js";
 import { assetHttpOrigin } from "./asset-http.js";
+import { codexWorkspace } from "./codex-workspace.js";
 const core = new StudioCore();
 reconcileGenerations(core);
 const server = new McpServer({ name: "game-studio", version: "0.1.7" });
 new OpenAIExtensions(server);
 const appUri = "ui://game-studio/workbench";
+async function openingArgs(
+  args: Record<string, unknown>,
+  meta?: Record<string, unknown>,
+) {
+  if (args.projectId || args.workspaceRoot || args.workspaceRoots) return args;
+  const workspaceRoot = codexWorkspace(meta);
+  if (workspaceRoot) return { ...args, workspaceRoot };
+  if (!server.server.getClientCapabilities()?.roots) return args;
+  try {
+    const { roots } = await server.server.listRoots({}, { timeout: 2000 });
+    return {
+      ...args,
+      workspaceRoots: roots.map((root) => root.uri).slice(0, 32),
+    };
+  } catch {
+    return args;
+  }
+}
 const csp = {
   connectDomains: ["blob:", assetHttpOrigin()],
   resourceDomains: ["blob:", "data:"],
@@ -65,9 +84,14 @@ for (const [name, tool] of Object.entries(tools)) {
   const config = { description: tool.description, inputSchema };
   const handler = async (
     args: Record<string, unknown>,
+    extra: { _meta?: Record<string, unknown> },
   ): Promise<CallToolResult> => {
     try {
-      const result = dispatch(core, name, args);
+      const result = dispatch(
+        core,
+        name,
+        name === "studio_open" ? await openingArgs(args, extra._meta) : args,
+      );
       return {
         content: [{ type: "text", text: JSON.stringify(result) }],
         structuredContent: { schemaVersion: 1, result },
@@ -110,11 +134,24 @@ registerAppTool(
     inputSchema: uiRequestSchema,
     _meta: { ui: { visibility: ["app"] } },
   },
-  async (args) => {
+  async (args, extra) => {
     try {
       return {
         content: [{ type: "text", text: "工作台请求完成" }],
-        structuredContent: { result: await uiRequest(core, args) },
+        structuredContent: {
+          result: await uiRequest(
+            core,
+            args.path === "/api/tools/studio_open"
+              ? {
+                  ...args,
+                  body: await openingArgs(
+                    (args.body || {}) as Record<string, unknown>,
+                    extra._meta,
+                  ),
+                }
+              : args,
+          ),
+        },
       };
     } catch (error) {
       return {

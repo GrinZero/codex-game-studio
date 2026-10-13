@@ -976,7 +976,7 @@ export function CanvasDocumentPreview({
     return () => ac.abort();
   }, [url]);
   return (
-    <div className="canvas-document-preview">
+    <div className="canvas-document-preview nodrag nowheel">
       {error || failed ? (
         "无法读取文档"
       ) : text ? (

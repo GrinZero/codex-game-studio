@@ -53,6 +53,8 @@ export interface Asset {
   revisions: AssetRevision[];
 }
 export interface StudioNode {
+  width?: number;
+  height?: number;
   id: string;
   type: "asset" | "note" | "workflow" | "generation";
   position: { x: number; y: number };

@@ -38,6 +38,8 @@
 
 工作台负责整理与查看，对话负责表达制作意图。连线提供输入，启动制作是单独的操作。
 
+还没有自己的文件组织习惯？可以阅读可选的[项目文件指南](skills/studio-project/references/project-file-guide.md)，然后说：`在我的游戏项目中采用 Open Game Studio 文件规范的标准方案。` 可以只选部分规则；已有项目保留原布局，迁移需另行明确提出。
+
 <a id="install"></a>
 
 ## 安装与打开

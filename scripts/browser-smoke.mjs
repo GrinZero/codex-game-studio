@@ -1,4 +1,7 @@
+import { verifyNodeSizing } from "./node-sizing-smoke.mjs";
 import { verifyResourceComposer } from "./resource-composer-smoke.mjs";
+import { verifyCanvasDrop } from "./canvas-drop-smoke.mjs";
+import { verifyLongNote } from "./long-note-smoke.mjs";
 import {
   mkdirSync,
   mkdtempSync,
@@ -43,6 +46,22 @@ page.on("response", async (response) => {
 try {
   await page.goto(base);
   await page.waitForLoadState("networkidle");
+  await page.evaluate(() => {
+    window.__versionReloadProbe = "old-document";
+  });
+  await page.getByRole("button", { name: /重新加载工作台/ }).press("Enter");
+  await page.waitForURL(/studioReload=/);
+  await page.getByRole("button", { name: /重新加载工作台/ }).waitFor();
+  assert.equal(
+    await page.evaluate(() => window.__versionReloadProbe),
+    undefined,
+  );
+  await page.screenshot({
+    path: path.join(output, "browser-version-reload.png"),
+  });
+  console.log(
+    "PASS: version button performs a full HTTP document reload with a fresh URL.",
+  );
   await page.getByRole("button", { name: "新建项目", exact: true }).click();
   await page.getByLabel("项目名称", { exact: true }).fill("浏览器验收项目");
   const directory = page.getByLabel("项目目录", { exact: true });
@@ -132,7 +151,10 @@ try {
   await page
     .getByRole("button", { name: "导入并登记版本", exact: true })
     .click();
-  await page.locator(".asset-dock").getByRole("button", { name: "展开全部", exact: true }).click();
+  await page
+    .locator(".asset-dock")
+    .getByRole("button", { name: "展开全部", exact: true })
+    .click();
   await page.getByRole("button", { name: "巡林者参考 图片 · v1" }).click();
   await page.locator(".asset-preview img").waitFor();
   assert.equal(
@@ -172,6 +194,18 @@ try {
       (await page.request.get(`${base}/api/projects/${project.id}`)).json(),
   });
   await verifyCanvasContextMenu({
+    page,
+    prefix: "browser",
+    readSnapshot: async () =>
+      (await page.request.get(`${base}/api/projects/${project.id}`)).json(),
+  });
+  await verifyLongNote({
+    page,
+    prefix: "browser",
+    readSnapshot: async () =>
+      (await page.request.get(`${base}/api/projects/${project.id}`)).json(),
+  });
+  await verifyNodeSizing({
     page,
     prefix: "browser",
     readSnapshot: async () =>
@@ -299,7 +333,18 @@ try {
     readSnapshot: async () =>
       (await page.request.get(`${base}/api/projects/${project.id}`)).json(),
   });
-  await verifyResourceComposer({ page, prefix: "browser", readSnapshot: async () => (await page.request.get(`${base}/api/projects/${project.id}`)).json() });
+  await verifyResourceComposer({
+    page,
+    prefix: "browser",
+    readSnapshot: async () =>
+      (await page.request.get(`${base}/api/projects/${project.id}`)).json(),
+  });
+  await verifyCanvasDrop({
+    page,
+    prefix: "browser",
+    readSnapshot: async () =>
+      (await page.request.get(`${base}/api/projects/${project.id}`)).json(),
+  });
   await verifyProjectCover({
     page,
     project,

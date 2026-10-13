@@ -77,7 +77,7 @@ HTTP 为 `POST /api/tools/<tool>`，JSON 参数。stdio MCP 注册相同 26 个�
 }
 ```
 
-其他 graph 操作：remove 的 id；note 的 id/text；connect 的 edge={id,source,target,kind:"reference"}；disconnect 的 id。reference 连线表示 source 向 target 提供制作输入，递归收集上游固定版本和便签；文档与便签作为文字输入，其他资产作为参考。禁止自连、循环、重复端点和制作分组作为 source（需选择明确产出版本）。连线不自动启动生成。布局 viewport 使用 viewport={x,y,zoom}。冲突返回 HTTP 409，调用方重新读取并合并意图。
+其他 graph 操作：remove 的 id；note 的 id 与 title/text（至少一个），title 去除首尾空白后为 1–120 字，省略字段保留原值；connect 的 edge={id,source,target,kind:"reference"}；disconnect 的 id。reference 连线表示 source 向 target 提供制作输入，递归收集上游固定版本和便签；文档与便签作为文字输入，其他资产作为参考。禁止自连、循环、重复端点和制作分组作为 source（需选择明确产出版本）。连线不自动启动生成。布局 viewport 使用 viewport={x,y,zoom}。冲突返回 HTTP 409，调用方重新读取并合并意图。
 
 ## 制作
 
@@ -93,9 +93,9 @@ export_bundle 通过固定 revisionIds 和幂等键生成独立目录。带 runI
 
 ## 读取与能力
 
-studio_open 可以传 `{}`，返回项目、URL 和真实能力状态。project_open 获取快照。asset_search 支持 query / kind / cursor / limit；asset_inspect 返回所有版本及跨画布使用位置。selection_context 返回固定选择、上游 inputSnapshot 与带 fileRef 的版本文件，不向宿主自动发送消息。
+studio_open 返回项目、URL 和真实能力状态。传 `projectId` 直接打开该项目；传当前会话绝对目录 `workspaceRoot` 自动匹配已登记项目（子目录匹配最近的项目根，忽略归档或不可用项目）。省略参数时，支持 MCP roots 的宿主会提供工作区目录；多个工作区匹配不同项目时保留列表，不使用服务安装目录或全局最近项目猜测当前会话。调用工具打开时应传当前会话目录，兼容未提供 roots 的宿主。备用浏览器 URL 携带所选项目。project_open 获取快照。asset_search 支持 query / kind / cursor / limit；asset_inspect 返回所有版本及跨画布使用位置。selection_context 返回固定选择、上游 inputSnapshot 与带 fileRef 的版本文件，不向宿主自动发送消息。
 
-`studio_open` 已绑定 `ui://game-studio/workbench` MCP App 资源及 global/thread 入口。`studio_ui_request` 仅供界面调用，负责项目数据、导入与媒体桥接。原生宿主是否显示入口仍取决于宿主支持，不能从 manifest 存在推断当前宿主表现。
+`studio_open` 已绑定 `ui://game-studio/workbench` MCP App 资源及 global/thread 入口。Codex 直接打开入口或界面初始化时，优先按调用 `_meta.threadId` 只读查询本地 `CODEX_HOME/state_*.sqlite` 中该会话的 `cwd`；只查准确会话，不读取聊天正文、不改数据库、不以最近聊天或 MCP 进程环境会话代替调用身份。宿主不提供原生会话 ID 或本地状态不可用时回退到标准 MCP roots；显式 `projectId` / `workspaceRoot` 优先。`studio_ui_request` 仅供界面调用，负责项目数据、导入与媒体桥接。原生宿主是否显示入口仍取决于宿主支持，不能从 manifest 存在推断当前宿主表现。
 
 ## 连线输入与冻结（2026-10-10）
 
@@ -120,3 +120,5 @@ workflow_start 必须使用准备时的 graphRevision；便签、连线等图修
 `generation_adopt` 将已导入固定版本回填到 draft/failed/interrupted/running 任务，用于人工制作或原远端任务的恢复；动画同样验证骨架和片段。`generation_control` 停止本地执行并保留历史，不能撤销已提交的远端工作。服务会恢复已写入的执行结果，失去执行器的任务标记中断；无自动重提。
 
 此路线是 Codex 工具编排，不是内置 BYOK Provider API。服务没有承诺每种生成工具已安装、已登录或有免费额度。仅安装 Codex 二进制不证明所有模型服务可用。
+
+节点尺寸属于 layout：`{ "op": "resize", "id": "node_id", "width": 480, "height": 320 }`。宽度为 160–4000，高度为 120–4000 的有限数字；同时传入 `width: null, height: null` 恢复默认大小。缩放左侧或顶部时，在同一事务中追加 move 更新位置。resize 只增加 layoutRevision，不使 graph 计划失效。add 的 node 可带 width/height，复制节点与画布保留已保存尺寸；旧节点省略尺寸时保持默认显示。

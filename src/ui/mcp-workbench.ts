@@ -1,6 +1,7 @@
 import { App } from "@modelcontextprotocol/ext-apps";
 import { installAppTransport, request } from "./api";
 import { studioBuild } from "../shared/build";
+import { launchProject, receiveLaunch } from "./workbench-launch";
 import "./style.css";
 document.documentElement.dataset.mcpApp = "true";
 // Hosts may omit the initial mode. Keep that case bounded like a chat embed.
@@ -10,7 +11,11 @@ const app = new App(
   { availableDisplayModes: ["fullscreen", "inline"] },
   { autoResize: false },
 );
-app.ontoolresult = () => {};
+app.ontoolinput = ({ arguments: args }) => receiveLaunch(args);
+app.ontoolresult = (result) =>
+  receiveLaunch(
+    (result.structuredContent as { result?: unknown } | undefined)?.result,
+  );
 function syncDisplayMode() {
   document.documentElement.dataset.mcpDisplayMode =
     app.getHostContext()?.displayMode === "fullscreen"
@@ -23,8 +28,9 @@ syncDisplayMode();
 installAppTransport(app);
 const service = await request<{ build?: string }>("/api/tools/studio_open", {
   method: "POST",
-  body: "{}",
+  body: JSON.stringify({ projectId: launchProject() }),
 });
+receiveLaunch(service);
 if (service.build !== studioBuild) {
   const root = document.getElementById("root")!;
   const panel = document.createElement("div");

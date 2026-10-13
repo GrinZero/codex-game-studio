@@ -1,4 +1,115 @@
 import assert from "node:assert/strict";
+
+async function verifyGenerationLayout({ page, ui, prefix }) {
+  const viewport = page.viewportSize();
+  const dialog = ui.getByRole("dialog", { name: "制作图片", exact: true });
+  const title = dialog.locator(".resource-references label span").first();
+  const originalTitle = await title.textContent();
+  await title.evaluate((element) => {
+    element.textContent =
+      "火焰马 · 主形象与材质参考 / flame-horse-character-reference-with-a-long-file-name";
+  });
+  try {
+    for (const size of [
+      viewport,
+      { width: 800, height: 540 },
+      { width: 360, height: 640 },
+    ]) {
+      await page.setViewportSize(size);
+      const layout = await dialog.evaluate((element) => {
+        const rect = (node) => {
+          const r = node.getBoundingClientRect();
+          return {
+            x: r.x,
+            y: r.y,
+            right: r.right,
+            bottom: r.bottom,
+            width: r.width,
+            height: r.height,
+          };
+        };
+        const row = element.querySelector(".resource-references > label");
+        const transparent = element.querySelector(".checkbox-field");
+        const body = element.querySelector(".modal-body");
+        return {
+          dialog: rect(element),
+          footer: rect(element.querySelector(".modal-footer")),
+          row: rect(row),
+          checkbox: rect(row.querySelector("input")),
+          title: rect(row.querySelector("span")),
+          version: rect(row.querySelector("small")),
+          transparent: rect(transparent),
+          transparentCheckbox: rect(transparent.querySelector("input")),
+          bodyWidth: body.clientWidth,
+          bodyScrollWidth: body.scrollWidth,
+          windowWidth: innerWidth,
+          windowHeight: innerHeight,
+        };
+      });
+      assert.ok(
+        layout.checkbox.width <= 20,
+        "Reference checkbox must not fill the row",
+      );
+      assert.ok(
+        layout.transparentCheckbox.width <= 20,
+        "Transparency checkbox must stay compact",
+      );
+      assert.ok(
+        layout.transparent.height <= 40,
+        "Transparency label must share a line with its checkbox",
+      );
+      assert.ok(
+        layout.title.width >= 120,
+        "Reference names need readable horizontal space",
+      );
+      assert.ok(
+        layout.title.x >= layout.checkbox.right,
+        "Reference name must follow the checkbox",
+      );
+      assert.ok(
+        layout.title.right <= layout.version.x + 1,
+        "Version must not overlap the name",
+      );
+      assert.ok(
+        layout.version.right <= layout.row.right,
+        "Version must stay inside its row",
+      );
+      assert.ok(
+        layout.bodyScrollWidth <= layout.bodyWidth + 1,
+        "Form must not overflow horizontally",
+      );
+      assert.ok(
+        layout.footer.bottom <= layout.windowHeight,
+        "Footer must remain visible in short windows",
+      );
+      assert.ok(
+        layout.dialog.right <= layout.windowWidth,
+        "Dialog must fit narrow windows",
+      );
+      await page.screenshot({
+        path: `var/qa/${prefix}-generation-${size.width}x${size.height}.png`,
+      });
+    }
+    await dialog
+      .getByRole("checkbox", { name: "透明背景", exact: true })
+      .check();
+    assert.equal(
+      await dialog
+        .getByRole("checkbox", { name: "透明背景", exact: true })
+        .isChecked(),
+      true,
+    );
+    await dialog
+      .getByRole("checkbox", { name: "透明背景", exact: true })
+      .uncheck();
+  } finally {
+    await title.evaluate((element, text) => {
+      element.textContent = text;
+    }, originalTitle);
+    await page.setViewportSize(viewport);
+  }
+}
+
 export async function verifyResourceComposer({
   page,
   ui = page,
@@ -104,6 +215,7 @@ export async function verifyResourceComposer({
         false,
       );
     if (title === "制作图片") {
+      await verifyGenerationLayout({ page, ui, prefix });
       await ui.getByLabel("资源名称", { exact: true }).fill("图标制作验收");
       await ui
         .getByLabel("制作描述", { exact: true })

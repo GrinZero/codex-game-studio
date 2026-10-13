@@ -40,6 +40,7 @@ for (const entry of [
   "docs",
   "licenses",
   "scripts",
+  "skills",
   "AGENTS.md",
 ]) {
   if (existsSync(path.join(runtime, entry)))
@@ -56,11 +57,22 @@ const sync = spawnSync(
   { stdio: "inherit" },
 );
 if (sync.status !== 0) throw new Error("Dependency sync failed.");
-cpSync(
-  path.join(repo, "skills/resource-creation"),
-  path.join(base, "plugins/game-studio/skills/resource-creation"),
-  { recursive: true },
+const cache = path.join(
+  os.homedir(),
+  ".codex/plugins/cache/game-studio-local/game-studio",
+  JSON.parse(readFileSync(path.join(repo, "package.json"), "utf8")).version,
 );
+for (const plugin of [path.join(base, "plugins/game-studio"), cache]) {
+  if (!existsSync(plugin)) continue;
+  const installed = JSON.parse(
+    readFileSync(path.join(plugin, ".mcp.json"), "utf8"),
+  ).mcpServers["game-studio"];
+  if (installed.cwd !== runtime)
+    throw new Error(`Plugin runtime differs: ${plugin}`);
+  cpSync(path.join(repo, "skills"), path.join(plugin, "skills"), {
+    recursive: true,
+  });
+}
 const stamp = {
   build: readFileSync(path.join(repo, "src/shared/version.ts"), "utf8").match(
     /studioVersionMarker = "([^"]+)"/,

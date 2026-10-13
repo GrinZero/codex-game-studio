@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { App } from "@modelcontextprotocol/ext-apps";
 import { AssetFileCache, type AssetFile } from "./asset-file-cache";
+import { CodexReferenceStore } from "./codex-references";
 
 let appTransport: App | undefined;
 export function installAppTransport(app: App) {
@@ -8,6 +9,49 @@ export function installAppTransport(app: App) {
 }
 export function isEmbeddedApp() {
   return !!appTransport;
+}
+export function supportsCodexReferences() {
+  const capability = appTransport?.getHostCapabilities()?.updateModelContext;
+  return !!capability?.text;
+}
+export async function updateCodexReferences(text: string) {
+  if (!supportsCodexReferences())
+    throw new Error("当前窗口无法直接添加对话引用，请复制引用后粘贴到 Codex。");
+  await appTransport!.updateModelContext(
+    { content: [{ type: "text", text }] },
+    { timeout: 15000 },
+  );
+}
+export const codexReferences = new CodexReferenceStore(updateCodexReferences);
+export async function reloadWorkbench() {
+  if (!appTransport) {
+    // A fresh navigation bypasses cached HTML; assets have content-hashed URLs.
+    const url = new URL(window.location.href);
+    url.searchParams.set("studioReload", crypto.randomUUID());
+    window.location.replace(url.href);
+    return;
+  }
+  // Reloading srcdoc repeats the host's cached HTML. Read the current bundle
+  // from the live MCP server, then navigate this iframe to a new document.
+  const resource = await appTransport.readServerResource(
+    { uri: "ui://game-studio/workbench" },
+    { timeout: 15000 },
+  );
+  const shell = resource.contents.find(
+    (item) => item.uri === "ui://game-studio/workbench" && "text" in item,
+  );
+  if (
+    !shell ||
+    !("text" in shell) ||
+    !shell.text.includes('<div id="root"></div>')
+  )
+    throw new Error("服务未返回工作台页面，请重试。");
+  const url = URL.createObjectURL(
+    new Blob([shell.text], { type: "text/html" }),
+  );
+  // Do not tear down the current bridge before navigation succeeds. A failed
+  // resource read leaves the existing workbench fully usable.
+  window.location.replace(url);
 }
 async function appRequest<T>(
   args: Record<string, unknown>,

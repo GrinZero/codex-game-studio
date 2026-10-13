@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { expect } from "@playwright/test";
 
 export async function verifyResponsiveWorkspace({ page, ui = page, prefix }) {
   const top = ui.locator(".workspace-top");
@@ -116,12 +117,14 @@ export async function verifyResponsiveWorkspace({ page, ui = page, prefix }) {
   assert.equal(await dock.isVisible(), false);
   assert.equal((await canvas.boundingBox()).width, expandedWidth + 220);
   const reopen = ui.getByRole("button", { name: "展开项目资源", exact: true });
-  assert.equal(
-    await reopen.evaluate(
-      (element) => element === element.ownerDocument.activeElement,
-    ),
-    true,
-  );
+  // Focus moves in requestAnimationFrame after the reopen button is mounted.
+  await expect
+    .poll(() =>
+      reopen.evaluate(
+        (element) => element === element.ownerDocument.activeElement,
+      ),
+    )
+    .toBe(true);
   await reopen.click();
   assert.equal(await dock.isVisible(), true);
   assert.equal((await canvas.boundingBox()).width, expandedWidth);

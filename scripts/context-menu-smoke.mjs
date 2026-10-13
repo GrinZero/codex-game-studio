@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import path from "node:path";
+import { verifyCodexHandoff } from "./codex-handoff-smoke.mjs";
 export async function verifyCanvasContextMenu({
   page,
   ui = page,
@@ -236,4 +237,5 @@ export async function verifyCanvasContextMenu({
   assert.ok(
     (await readSnapshot()).assets.some((a) => a.id === asset.data.assetId),
   );
+  await verifyCodexHandoff({ page, ui, readSnapshot, prefix });
 }

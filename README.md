@@ -38,6 +38,8 @@ Show me the frozen input list before starting production.
 
 Use the workbench to organize and inspect; use the conversation to tell Codex what to do. Connections supply inputs. Starting production is a separate action.
 
+Want a starting point for file organization? Read the optional [project file guide (Chinese)](skills/studio-project/references/project-file-guide.md), then ask: `Adopt the standard Open Game Studio file guide in my game project.` You can choose individual rules; existing projects keep their layout unless you request a migration.
+
 <a id="install"></a>
 
 ## Install and open

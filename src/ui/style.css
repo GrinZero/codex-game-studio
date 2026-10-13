@@ -227,6 +227,7 @@ kbd {
 
 /* App Shell */
 .app-shell {
+  position: relative;
   min-height: 100vh;
   display: flex;
   background: var(--bg-app);
@@ -443,7 +444,7 @@ kbd {
   overflow-wrap: anywhere;
 }
 
-input,
+input:not([type="checkbox"]):not([type="radio"]),
 textarea,
 select {
   width: 100%;
@@ -576,6 +577,219 @@ dialog form,
 }
 
 /* Branding */
+.codex-handoff {
+  width: min(580px, calc(100vw - 24px));
+}
+
+.handoff-body {
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+  max-height: calc(100dvh - 210px);
+  overflow-y: auto;
+}
+
+.handoff-description,
+.handoff-footer > span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.handoff-context {
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.handoff-context-heading {
+  padding: 12px 14px;
+  display: grid;
+  gap: 5px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.handoff-context-heading small,
+.handoff-item small,
+.handoff-instruction small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.handoff-items {
+  padding: 6px 14px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.handoff-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12px;
+}
+
+.handoff-item > svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.handoff-item > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.handoff-item > small {
+  flex-shrink: 0;
+}
+.handoff-instruction {
+  display: grid;
+  gap: 9px;
+  font-size: 12px;
+}
+.handoff-instruction > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.handoff-instruction textarea {
+  resize: vertical;
+  min-height: 84px;
+  max-height: 220px;
+}
+.handoff-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: -6px;
+}
+.handoff-preview {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 12px;
+}
+.handoff-preview summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.handoff-preview summary > span {
+  float: right;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.handoff-preview textarea {
+  margin-top: 12px;
+  height: 220px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.handoff-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.handoff-error {
+  color: var(--accent-red);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.handoff-error button {
+  margin-top: 10px;
+}
+.handoff-footer {
+  border-top: 1px solid var(--border-subtle);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.handoff-footer .button {
+  flex-shrink: 0;
+}
+.handoff-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.codex-references {
+  position: fixed;
+  bottom: 18px;
+  right: 18px;
+  z-index: 45;
+  width: min(420px, calc(100vw - 36px));
+  padding: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  box-shadow: 0 8px 28px #0003;
+}
+.codex-references-heading,
+.codex-references-heading > span,
+.codex-reference-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.codex-references-heading {
+  justify-content: space-between;
+}
+.codex-reference-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+.codex-reference-chip {
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 3px 6px;
+  max-width: 100%;
+}
+.codex-reference-chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.codex-reference-chip > svg,
+.codex-reference-chip > button {
+  flex-shrink: 0;
+}
+.codex-references > p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.codex-references > .handoff-error {
+  color: var(--accent-red);
+}
+
+@media (max-width: 420px) {
+  .handoff-body {
+    padding: 14px;
+  }
+  .handoff-footer {
+    padding: 12px 14px;
+    flex-wrap: wrap;
+  }
+}
+
 .brand {
   display: flex;
   align-items: center;
@@ -624,6 +838,18 @@ dialog form,
   flex-direction: column;
   padding: 0 10px;
   z-index: 10;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.home-sidebar[hidden] {
+  display: none;
+}
+.home-backdrop {
+  display: none;
+}
+.home-navigation-collapsed .home-main {
+  margin-left: 0;
 }
 
 .side-item {
@@ -729,6 +955,7 @@ dialog form,
 .home-main {
   margin-left: 240px;
   flex: 1;
+  min-width: 0;
   min-height: 100vh;
   background: var(--bg-app);
   display: flex;
@@ -737,7 +964,8 @@ dialog form,
 
 .home-top {
   min-height: 54px;
-  padding: 0 32px;
+  padding: 12px 32px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -772,6 +1000,24 @@ dialog form,
     Consolas,
     monospace;
   white-space: nowrap;
+  cursor: pointer;
+}
+
+.studio-version > svg {
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+.studio-version:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+.studio-version:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 3px;
+}
+.studio-version:disabled {
+  cursor: wait;
 }
 
 .breadcrumbs {
@@ -787,15 +1033,93 @@ dialog form,
   font-weight: 600;
 }
 
+.breadcrumb-project,
+.breadcrumb-canvas select {
+  border: 0;
+  border-radius: 5px;
+  padding: 5px 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.breadcrumb-project:hover,
+.breadcrumb-canvas select:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.breadcrumb-project:focus-visible,
+.breadcrumb-canvas select:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.breadcrumb-canvas {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
+.breadcrumb-canvas select {
+  appearance: none;
+  field-sizing: content;
+  max-width: 100%;
+  padding-right: 24px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.breadcrumb-canvas option {
+  background: var(--bg-app);
+  color: var(--text-primary);
+}
+
+.breadcrumb-canvas > svg {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
 .home-actions {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
+  flex: 1 1 400px;
+  justify-content: flex-end;
+}
+
+.home-actions .search {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.home-actions .search input {
+  width: 100%;
+  min-width: 0;
+}
+.home-location .breadcrumbs {
+  min-width: 0;
+}
+.home-location .breadcrumbs strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .projects-section {
   padding: 32px;
   flex: 1;
+  min-width: 0;
+  flex-shrink: 0;
 }
 
 .section-head {
@@ -822,7 +1146,7 @@ dialog form,
 
 .project-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
   gap: 16px;
 }
 
@@ -1631,6 +1955,27 @@ dialog form,
   background: var(--bg-canvas);
 }
 
+.canvas-drop-hint {
+  position: absolute;
+  inset: 12px;
+  z-index: 12;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 2px dashed var(--accent-blue);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-canvas) 90%, var(--accent-blue));
+  color: var(--text-primary);
+}
+
+.canvas-drop-hint span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 .canvas-floating-tools {
   position: absolute;
   top: 14px;
@@ -1841,7 +2186,7 @@ dialog form,
 
 /* Note Node */
 .note-node {
-  width: 200px;
+  width: 220px;
   min-height: 140px;
   display: flex;
   flex-direction: column;
@@ -1849,13 +2194,167 @@ dialog form,
 }
 
 .note-body {
-  padding: 10px;
+  margin: 12px;
   font-size: 12px;
   line-height: 1.6;
   color: var(--text-primary);
   white-space: pre-wrap;
   word-break: break-word;
-  flex: 1;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 7;
+  overflow: hidden;
+  max-height: 134.4px;
+  overflow-wrap: anywhere;
+}
+
+.note-node-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.note-node-title > svg {
+  flex-shrink: 0;
+}
+.note-node-title > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.note-title-field {
+  margin: 12px 20px 0;
+  flex-shrink: 0;
+}
+
+.note-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.note-read-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+.note-read-button:hover {
+  color: var(--text-primary);
+}
+.note-read-button:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 3px;
+}
+
+/* Keep the controls visible while long prompts scroll in a reading column. */
+.note-dialog {
+  width: min(820px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+}
+.note-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.note-dialog .modal-head {
+  flex-shrink: 0;
+}
+.note-dialog-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+.note-mode-switch {
+  display: flex;
+  gap: 4px;
+}
+.note-mode-switch [aria-pressed="true"] {
+  background: var(--bg-active);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+.note-text-count {
+  margin-right: auto;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.note-dialog-content {
+  min-height: 0;
+  display: flex;
+  height: min(56dvh, 560px);
+  flex: 0 1 auto;
+  overflow: hidden;
+  padding: 0;
+}
+.note-fulltext,
+.note-editor {
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  padding: 24px 32px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.85;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  background: var(--bg-input);
+}
+.note-fulltext {
+  user-select: text;
+}
+.note-editor {
+  resize: none;
+  border: 0;
+  border-radius: 0;
+}
+.note-editor:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--border-focus);
+}
+.note-dialog-footer {
+  margin: 0;
+  padding: 14px 20px;
+  flex-shrink: 0;
+}
+.note-dialog-footer > span {
+  margin-right: auto;
+  font-size: 11px;
+}
+.note-dialog-error {
+  padding: 8px 20px;
+  color: var(--accent-red);
+  font-size: 12px;
+}
+@media (max-width: 640px) {
+  .note-dialog-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 16px;
+  }
+  .note-fulltext,
+  .note-editor {
+    padding: 18px 20px;
+  }
+  .note-dialog-footer {
+    padding: 12px 16px;
+  }
 }
 
 /* Workflow Node */
@@ -2826,6 +3325,24 @@ dialog form,
 }
 
 @media (max-width: 1100px) {
+  .home-sidebar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: min(240px, calc(100% - 48px));
+    height: 100%;
+    z-index: 30;
+    box-shadow: var(--shadow-lg);
+  }
+  .home-main {
+    margin-left: 0;
+  }
+  .home-backdrop {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    background: rgba(0, 0, 0, 0.45);
+  }
   .workspace-sidebar {
     position: absolute;
     inset: 0 auto 0 0;
@@ -2845,9 +3362,16 @@ dialog form,
 
 @media (max-width: 800px) {
   .studio-version {
-    flex-direction: column;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: 12px auto;
+    column-gap: 6px;
+    align-items: center;
     padding: 2px 6px;
+  }
+
+  .studio-version > svg {
+    grid-row: 1 / 3;
+    margin-right: 0;
   }
 
   .studio-version-build {
@@ -2880,7 +3404,7 @@ dialog form,
     display: none;
   }
 
-  .workspace-location .breadcrumbs > span,
+  .workspace-location .breadcrumbs > .breadcrumb-project,
   .workspace-location .breadcrumbs > svg {
     display: none;
   }
@@ -2894,14 +3418,6 @@ dialog form,
   .app-shell {
     flex-direction: column;
   }
-  .home-sidebar {
-    position: static;
-    width: 100%;
-    height: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--border-subtle);
-  }
-
   .home-main {
     margin-left: 0;
     width: 100%;
@@ -2918,11 +3434,12 @@ dialog form,
   .home-actions {
     width: 100%;
     flex-wrap: wrap;
+    flex-basis: auto;
   }
 
   .home-actions .search {
     flex: 1;
-    min-width: 140px;
+    flex-basis: 100%;
   }
 
   .home-actions .search input {
@@ -2935,7 +3452,11 @@ dialog form,
   }
 
   .project-grid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+  }
+
+  .project-card-cover {
+    max-height: 220px;
   }
 
   .cover-image-grid {
@@ -2990,21 +3511,6 @@ html[data-mcp-app] .workspace {
   height: 100%;
   max-height: 100%;
   min-height: 0;
-}
-
-@media (max-width: 768px) {
-  html[data-mcp-app] .home-sidebar {
-    position: static;
-    inset: auto;
-    height: auto;
-    max-height: 180px;
-    overflow-y: auto;
-  }
-
-  html[data-mcp-app] .home-main {
-    height: 0;
-    flex: 1;
-  }
 }
 
 .input-summary {
@@ -3179,7 +3685,19 @@ html[data-mcp-app] .workspace {
 .resource-dialog {
   width: min(560px, calc(100vw - 24px));
   max-height: calc(100dvh - 32px);
+  overflow: hidden;
+}
+.resource-dialog[open] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.resource-dialog > .modal-body {
+  min-height: 0;
   overflow-y: auto;
+}
+.resource-dialog > .modal-footer {
+  margin: 0;
+  padding: 16px 20px;
 }
 .resource-dialog-wide {
   width: min(860px, calc(100vw - 24px));
@@ -3191,6 +3709,18 @@ html[data-mcp-app] .workspace {
 .resource-dialog input:not([type="checkbox"]),
 .resource-dialog select {
   width: 100%;
+}
+.resource-dialog input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  flex: 0 0 16px;
+  accent-color: var(--text-primary);
+}
+.resource-dialog input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 3px;
 }
 .document-editor-toolbar,
 .resource-library-filters,
@@ -3299,11 +3829,22 @@ html[data-mcp-app] .workspace {
 }
 .resource-settings {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 14px;
 }
 .resource-settings > label {
-  flex: 1;
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.resource-settings > .checkbox-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-height: 36px;
+  margin-bottom: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
 }
 .resource-references {
   max-height: 190px;
@@ -3318,17 +3859,28 @@ html[data-mcp-app] .workspace {
   margin-bottom: 8px;
 }
 .resource-references > label {
-  display: flex;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) max-content;
   align-items: center;
   gap: 8px;
-  padding: 6px 0;
+  min-height: 36px;
+  padding: 8px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.resource-references > label:hover,
+.resource-references > label:has(input:checked) {
+  background: var(--bg-input);
 }
 .resource-references label span {
-  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
 }
 .resource-references small {
   font-size: 10px;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 .resource-error {
   color: var(--accent-red);
@@ -3449,3 +4001,91 @@ html[data-mcp-app] .workspace {
   line-height: 1.8;
   margin-bottom: 22px;
 }
+
+/* Sized nodes keep their previews inside the persisted frame. */
+.resizable-node.has-custom-size {
+  width: 100%;
+  height: 100%;
+}
+.resizable-node.has-custom-size > .studio-node {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.resizable-node.has-custom-size .node-heading,
+.resizable-node.has-custom-size .node-caption,
+.resizable-node.has-custom-size .note-footer,
+.resizable-node.has-custom-size .workflow-node-head,
+.resizable-node.has-custom-size .workflow-node-footer {
+  flex-shrink: 0;
+}
+.resizable-node.has-custom-size .asset-thumb,
+.resizable-node.has-custom-size .canvas-document-preview,
+.resizable-node.has-custom-size .canvas-media-preview,
+.resizable-node.has-custom-size .missing-preview {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+.resizable-node.has-custom-size .asset-thumb img {
+  object-fit: contain;
+}
+.resizable-node.has-custom-size .canvas-document-preview {
+  overflow: auto;
+}
+.resizable-node.has-custom-size .canvas-media-preview {
+  overflow: auto;
+  gap: 8px;
+}
+.resizable-node.has-custom-size .canvas-media-preview video {
+  max-height: 100%;
+  flex: 1;
+  min-height: 0;
+  object-fit: contain;
+}
+.resizable-node.has-custom-size .note-body {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  display: block;
+  overflow: auto;
+}
+.resizable-node.has-custom-size .workflow-node-steps {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.resizable-node.has-custom-size .generation-node {
+  display: flex;
+  flex-direction: column;
+}
+.resizable-node.has-custom-size .generation-node p {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+.node-size-fields label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.node-size-fields input {
+  flex: 1;
+  min-width: 0;
+}
+
+.model-preview-expand { position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--border-default); border-radius: 7px; background: var(--bg-surface); color: var(--text-primary); cursor: pointer; z-index: 2; }
+.model-preview-clips { right: 46px; max-width: calc(100% - 54px); }
+.model-preview-dialog { width: min(1000px, 92vw); max-width: 92vw; padding: 16px; border: 1px solid var(--border-default); border-radius: 16px; background: var(--bg-surface); color: var(--text-primary); }
+.model-preview-dialog::backdrop { background: #000a; }
+.model-preview-dialog header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.model-preview-dialog button { cursor: pointer; color: var(--text-primary); background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 6px; padding: 6px 10px; }
+.model-preview-dialog .is-detailed { height: min(72vh, 760px); min-height: 240px; }
+.model-preview-tools { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 8px; }
+.model-preview-tools button:disabled { opacity: .4; }
+.model-preview-dialog .model-preview-clips { right: 8px; }

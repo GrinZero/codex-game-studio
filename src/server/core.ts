@@ -56,19 +56,30 @@ const position = z.object({
   x: z.number().finite().min(-100000).max(100000),
   y: z.number().finite().min(-100000).max(100000),
 });
-const nodeSchema = z.object({
-  id: idSchema,
-  type: z.enum(["asset", "note", "workflow", "generation"]),
-  position,
-  data: z.object({
-    title: nameSchema,
-    assetId: idSchema.optional(),
-    revisionId: idSchema.optional(),
-    text: z.string().max(30000).optional(),
-    instanceId: idSchema.optional(),
-    taskId: idSchema.optional(),
-  }),
-});
+const nodeWidth = z.number().finite().min(160).max(4000);
+const nodeHeight = z.number().finite().min(120).max(4000);
+const nodeSchema = z
+  .object({
+    width: nodeWidth.optional(),
+    height: nodeHeight.optional(),
+    id: idSchema,
+    type: z.enum(["asset", "note", "workflow", "generation"]),
+    position,
+    data: z.object({
+      title: nameSchema,
+      assetId: idSchema.optional(),
+      revisionId: idSchema.optional(),
+      text: z.string().max(30000).optional(),
+      instanceId: idSchema.optional(),
+      taskId: idSchema.optional(),
+    }),
+  })
+  .refine(
+    (node) => (node.width === undefined) === (node.height === undefined),
+    {
+      message: "节点宽高必须同时设置或省略",
+    },
+  );
 const edgeSchema = z.object({
   id: idSchema,
   source: idSchema,
@@ -1106,6 +1117,26 @@ export class StudioCore {
               const n = c.nodes.find((n) => n.id === v.id);
               if (!n) fail("节点不存在", 409);
               n!.position = v.position;
+            } else if (op.op === "resize") {
+              const v = z
+                .object({
+                  id: idSchema,
+                  width: nodeWidth.nullable(),
+                  height: nodeHeight.nullable(),
+                })
+                .refine((v) => (v.width === null) === (v.height === null), {
+                  message: "宽高必须同时设置或恢复默认",
+                })
+                .parse(raw);
+              const n = c.nodes.find((n) => n.id === v.id);
+              if (!n) fail("节点不存在", 409);
+              if (v.width === null || v.height === null) {
+                delete n!.width;
+                delete n!.height;
+              } else {
+                n!.width = v.width;
+                n!.height = v.height;
+              }
             } else if (op.op === "viewport")
               c.viewport = z
                 .object({
@@ -1114,7 +1145,7 @@ export class StudioCore {
                   zoom: z.number().min(0.1).max(4),
                 })
                 .parse(op.viewport);
-            else fail("布局操作仅支持 move 和 viewport");
+            else fail("布局操作仅支持 move、resize 和 viewport");
           } else {
             if (op.op === "add") {
               const n = nodeSchema.parse(op.node) as StudioNode;
@@ -1141,10 +1172,20 @@ export class StudioCore {
                 (e) => e.source !== id && e.target !== id,
               );
             } else if (op.op === "note") {
-              const id = idSchema.parse(op.id);
-              const n = c.nodes.find((n) => n.id === id && n.type === "note");
+              const v = z
+                .object({
+                  id: idSchema,
+                  title: nameSchema.optional(),
+                  text: z.string().max(30000).optional(),
+                })
+                .refine((v) => v.title !== undefined || v.text !== undefined, {
+                  message: "请提供便签名称或内容",
+                })
+                .parse(op);
+              const n = c.nodes.find((n) => n.id === v.id && n.type === "note");
               if (!n) fail("便签不存在");
-              n!.data.text = z.string().max(30000).parse(op.text);
+              if (v.title !== undefined) n!.data.title = v.title;
+              if (v.text !== undefined) n!.data.text = v.text;
             } else if (op.op === "connect") {
               const e = edgeSchema.parse(op.edge);
               const error = canvasConnectionError(c, e.source, e.target);

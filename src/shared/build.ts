@@ -1,1 +1,1 @@
-export const studioBuild = "resources-2026-10-11";
+export const studioBuild = "workspace-launch-2026-10-12";
